@@ -439,6 +439,33 @@ async function main() {
   void exportCustomer;
   void distributor;
 
+  // Created before quotations because QT-2026-0002 references this lead via leadId.
+  await prisma.lead.upsert({
+    where: { id: "lead-demo-1" },
+    update: {},
+    create: {
+      id: "lead-demo-1",
+      company: "Global Spice Imports",
+      contactName: "Sarah Chen",
+      email: "sarah@globalspice.com",
+      phone: "919900112233",
+      stage: LeadStage.NEGOTIATION,
+      priority: LeadPriority.HIGH,
+      leadSource: LeadSource.LINKEDIN,
+      products: "Tamarind powder, concentrate",
+      volume: "2 MT/month",
+      value: 850000,
+      country: "Singapore",
+      moq: "500 kg",
+      packagingPreference: "25 kg HDPE drums",
+      shippingTerms: "FOB Chennai",
+      certifications: "FSSAI, ISO 22000",
+      assigneeId: sales.id,
+      followUpAt: new Date(Date.now() + 3 * 86400000),
+      lastContactAt: new Date(),
+    },
+  });
+
   const sentLines = [seedQuoteLine(products[2], 2000, 199, "DOMESTIC")];
   const sentTotals = seedQuoteTotals(sentLines, 15000, 0);
   await prisma.quotation.upsert({
@@ -1146,32 +1173,6 @@ async function main() {
         passed: true,
       },
     ],
-  });
-
-  await prisma.lead.upsert({
-    where: { id: "lead-demo-1" },
-    update: {},
-    create: {
-      id: "lead-demo-1",
-      company: "Global Spice Imports",
-      contactName: "Sarah Chen",
-      email: "sarah@globalspice.com",
-      phone: "919900112233",
-      stage: LeadStage.NEGOTIATION,
-      priority: LeadPriority.HIGH,
-      leadSource: LeadSource.LINKEDIN,
-      products: "Tamarind powder, concentrate",
-      volume: "2 MT/month",
-      value: 850000,
-      country: "Singapore",
-      moq: "500 kg",
-      packagingPreference: "25 kg HDPE drums",
-      shippingTerms: "FOB Chennai",
-      certifications: "FSSAI, ISO 22000",
-      assigneeId: sales.id,
-      followUpAt: new Date(Date.now() + 3 * 86400000),
-      lastContactAt: new Date(),
-    },
   });
 
   const demoLeads = [
