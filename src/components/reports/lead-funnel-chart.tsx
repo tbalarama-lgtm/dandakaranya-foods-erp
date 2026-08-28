@@ -75,7 +75,7 @@ export function LeadFunnelChart({
               const widthPct = 40 + (s.count / max) * 60;
               return (
                 <motion.button
-                  key={s.stage}
+                  key={`${s.stage}-${i}`}
                   type="button"
                   initial={{ opacity: 0, scaleX: 0.85 }}
                   animate={{ opacity: 1, scaleX: 1 }}

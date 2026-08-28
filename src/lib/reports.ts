@@ -236,11 +236,14 @@ export async function getReportMetrics(
   const leadTotal = leadsByStage.reduce((s, l) => s + l._count, 0);
   const converted = (leadCounts[LeadStage.CONVERTED] ?? 0) + (leadCounts[LeadStage.WON] ?? 0);
 
-  let funnelRunning = leadTotal;
-  const funnelStages = FUNNEL_ORDER.filter((s) => s !== LeadStage.LOST).map((stage) => {
-    const count = leadCounts[stage] ?? 0;
+  const funnelStages = FUNNEL_ORDER.filter(
+    (s) => s !== LeadStage.LOST && s !== LeadStage.CONVERTED,
+  ).map((stage) => {
+    const count =
+      stage === LeadStage.WON
+        ? converted
+        : (leadCounts[stage] ?? 0);
     const rate = leadTotal > 0 ? Math.round((count / leadTotal) * 1000) / 10 : 0;
-    funnelRunning = count;
     return { stage: STAGE_LABELS[stage], count, rate };
   });
 
