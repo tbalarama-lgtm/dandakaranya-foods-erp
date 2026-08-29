@@ -44,12 +44,10 @@ function initials(name: string) {
 export function TopNavbar({
   user,
   unreadCount,
-  showMenuButton = false,
   onMenuClick,
 }: {
   user: { name: string; email: string; role: UserRole };
   unreadCount: number;
-  showMenuButton?: boolean;
   onMenuClick?: () => void;
 }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -61,7 +59,7 @@ export function TopNavbar({
 
   return (
     <header className="erp-top-navbar sticky top-0 z-30 flex h-[4.25rem] shrink-0 items-center gap-3 px-4 lg:px-6">
-      {showMenuButton && (
+      {onMenuClick && (
         <Button
           variant="ghost"
           size="icon"

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="dashboard-canvas relative min-h-[calc(100vh-8rem)]">
+    <div className="dashboard-canvas relative min-h-0 lg:min-h-[calc(100vh-8rem)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <motion.div
           className="absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-primary/25 to-emerald-400/10 blur-3xl"

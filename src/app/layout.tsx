@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Desktop-first ERP — avoid narrow/mobile layout in the browser. */
+/** Responsive ERP — use device width so port-forward / mobile previews layout correctly. */
 export const viewport: Viewport = {
-  width: 1280,
+  width: "device-width",
   initialScale: 1,
 };
 
