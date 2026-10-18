@@ -4,7 +4,9 @@ import type {
   DuplicatePair,
   PagedResult,
   RollEdition,
+  RollEditionCounts,
   VerificationStatus,
+  VoterDetail,
   VoterEntry,
   VoterFilters,
   VoterListItem
@@ -139,6 +141,48 @@ export function createEdition(
   return mapEdition(db.prepare("SELECT * FROM roll_editions WHERE id = ?").get(id) as Record<string, unknown>);
 }
 
+export function archiveEdition(db: Database.Database, id: string, constituencyId: string): RollEdition {
+  const edition = getEdition(db, id);
+  if (edition.constituencyId !== constituencyId) {
+    throw new AppError("constituency_isolation", "Roll edition is outside the selected constituency.");
+  }
+  db.prepare("UPDATE roll_editions SET archived = 1, updated_at = ? WHERE id = ?").run(nowIso(), id);
+  writeAudit(db, { action: "archive", entityType: "roll_edition", recordId: id, changedFields: ["archived"] });
+  return getEdition(db, id);
+}
+
+export function editionCounts(db: Database.Database, constituencyId: string, rollEditionId: string): RollEditionCounts {
+  const edition = getEdition(db, rollEditionId);
+  if (edition.constituencyId !== constituencyId) {
+    throw new AppError("constituency_isolation", "Roll edition is outside the selected constituency.");
+  }
+  const row = db
+    .prepare(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN archived = 0 AND assigned_ward_id IS NOT NULL THEN 1 ELSE 0 END) AS assigned,
+         SUM(CASE WHEN archived = 0 AND assigned_ward_id IS NULL THEN 1 ELSE 0 END) AS unassigned,
+         SUM(CASE WHEN archived = 1 THEN 1 ELSE 0 END) AS archived,
+         SUM(CASE WHEN archived = 0 AND verification_status = 'unverified' THEN 1 ELSE 0 END) AS unverified,
+         SUM(CASE WHEN archived = 0 AND verification_status = 'verified' THEN 1 ELSE 0 END) AS verified,
+         SUM(CASE WHEN archived = 0 AND verification_status = 'needs_review' THEN 1 ELSE 0 END) AS needs_review
+       FROM voter_entries WHERE constituency_id = ? AND roll_edition_id = ?`
+    )
+    .get(constituencyId, rollEditionId) as Record<string, number>;
+  return {
+    rollEditionId,
+    editionName: edition.name,
+    revisionCode: edition.revisionCode,
+    total: Number(row.total ?? 0),
+    assigned: Number(row.assigned ?? 0),
+    unassigned: Number(row.unassigned ?? 0),
+    archived: Number(row.archived ?? 0),
+    unverified: Number(row.unverified ?? 0),
+    verified: Number(row.verified ?? 0),
+    needsReview: Number(row.needs_review ?? 0)
+  };
+}
+
 export function getEdition(db: Database.Database, id: string): RollEdition {
   const row = db.prepare("SELECT * FROM roll_editions WHERE id = ?").get(id) as Record<string, unknown> | undefined;
   if (!row) throw new AppError("not_found", "Roll edition not found.");
@@ -215,8 +259,8 @@ export function createVoter(
   );
   if (input.assignedWardId) {
     db.prepare(
-      "INSERT INTO ward_assignment_history (id, voter_id, from_ward_id, to_ward_id, reason, changed_at) VALUES (?, ?, NULL, ?, ?, ?)"
-    ).run(newId(), id, input.assignedWardId, "manual-create", ts);
+      "INSERT INTO ward_assignment_history (id, voter_id, from_ward_id, to_ward_id, reason, changed_at, verification_source) VALUES (?, ?, NULL, ?, ?, ?, ?)"
+    ).run(newId(), id, input.assignedWardId, "manual-create", ts, "manual");
   }
   writeVoterHistory(db, id, "create", ["sourceName", "sourceElectoralId"]);
   writeAudit(db, { action: "create", entityType: "voter_entry", recordId: id, changedFields: ["sourceName", "sourceElectoralId"] });
@@ -229,12 +273,11 @@ export function getVoter(db: Database.Database, id: string): VoterEntry {
   return mapVoter(row);
 }
 
-export function getVoterDetail(db: Database.Database, id: string): {
-  voter: VoterListItem;
-  changeHistory: Array<{ id: string; changedAt: string; action: string; fieldNames: string[] }>;
-  assignmentHistory: Array<{ id: string; fromWardId: string | null; toWardId: string | null; reason: string; changedAt: string }>;
-} {
+export function getVoterDetail(db: Database.Database, id: string, constituencyId: string): VoterDetail {
   const voter = toListItem(db, getVoter(db, id));
+  if (voter.constituencyId !== constituencyId) {
+    throw new AppError("constituency_isolation", "Record is outside the selected constituency.");
+  }
   const changeHistory = (
     db.prepare("SELECT * FROM voter_change_history WHERE voter_id = ? ORDER BY changed_at DESC").all(id) as Record<string, unknown>[]
   ).map((row) => ({
@@ -250,9 +293,24 @@ export function getVoterDetail(db: Database.Database, id: string): {
     fromWardId: row.from_ward_id ? String(row.from_ward_id) : null,
     toWardId: row.to_ward_id ? String(row.to_ward_id) : null,
     reason: String(row.reason ?? ""),
+    verificationSource: String(row.verification_source ?? ""),
     changedAt: String(row.changed_at)
   }));
-  return { voter, changeHistory, assignmentHistory };
+  let importBatch: VoterDetail["importBatch"] = null;
+  if (voter.importBatchId) {
+    const batch = db
+      .prepare("SELECT id, file_name, file_sha256, created_at FROM import_batches WHERE id = ?")
+      .get(voter.importBatchId) as { id: string; file_name: string; file_sha256: string; created_at: string } | undefined;
+    if (batch) {
+      importBatch = {
+        id: batch.id,
+        fileName: batch.file_name,
+        fileSha256: batch.file_sha256,
+        createdAt: batch.created_at
+      };
+    }
+  }
+  return { voter, changeHistory, assignmentHistory, importBatch };
 }
 
 export function updateVoter(
@@ -316,8 +374,8 @@ export function updateVoter(
   );
   if (input.assignedWardId !== undefined && input.assignedWardId !== current.assignedWardId) {
     db.prepare(
-      "INSERT INTO ward_assignment_history (id, voter_id, from_ward_id, to_ward_id, reason, changed_at) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(newId(), input.id, current.assignedWardId, input.assignedWardId, "manual-update", ts);
+      "INSERT INTO ward_assignment_history (id, voter_id, from_ward_id, to_ward_id, reason, changed_at, verification_source) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).run(newId(), input.id, current.assignedWardId, input.assignedWardId, "manual-update", ts, "manual");
   }
   writeVoterHistory(db, input.id, "update", fields);
   writeAudit(db, { action: "update", entityType: "voter_entry", recordId: input.id, changedFields: fields });
@@ -342,7 +400,7 @@ export function archiveVoter(db: Database.Database, id: string, constituencyId: 
 
 export function assignWardsBulk(
   db: Database.Database,
-  input: { constituencyId: string; voterIds: string[]; wardId: string | null; reason: string }
+  input: { constituencyId: string; voterIds: string[]; wardId: string | null; reason: string; verificationSource?: string }
 ): number {
   if (input.voterIds.length === 0) return 0;
   const tx = db.transaction(() => {
@@ -357,12 +415,13 @@ export function assignWardsBulk(
         constituencyId: input.constituencyId,
         assignedWardId: input.wardId
       });
-      if (input.reason) {
-        db.prepare("UPDATE ward_assignment_history SET reason = ? WHERE voter_id = ? AND changed_at = (SELECT MAX(changed_at) FROM ward_assignment_history WHERE voter_id = ?)").run(
-          input.reason,
-          voterId,
-          voterId
-        );
+      if (input.reason || input.verificationSource) {
+        db.prepare(
+          `UPDATE ward_assignment_history
+           SET reason = COALESCE(NULLIF(?, ''), reason),
+               verification_source = COALESCE(NULLIF(?, ''), verification_source)
+           WHERE voter_id = ? AND changed_at = (SELECT MAX(changed_at) FROM ward_assignment_history WHERE voter_id = ?)`
+        ).run(input.reason, input.verificationSource ?? "bulk-assignment", voterId, voterId);
       }
       count += 1;
     }
@@ -382,6 +441,7 @@ export function listVoters(db: Database.Database, filters: VoterFilters): PagedR
     params.push(filters.wardId);
   }
   if (filters.unassignedOnly) where.push("v.assigned_ward_id IS NULL");
+  if (filters.assignedOnly) where.push("v.assigned_ward_id IS NOT NULL");
   if (filters.rollEditionId) {
     where.push("v.roll_edition_id = ?");
     params.push(filters.rollEditionId);
@@ -422,7 +482,16 @@ export function listVoters(db: Database.Database, filters: VoterFilters): PagedR
   return { items, total, page, pageSize };
 }
 
-export function findDuplicates(db: Database.Database, rollEditionId: string): DuplicatePair[] {
+export function listVotersForExport(db: Database.Database, filters: VoterFilters): VoterListItem[] {
+  const result = listVoters(db, { ...filters, page: 1, pageSize: 50_000 });
+  return result.items;
+}
+
+export function findDuplicates(db: Database.Database, constituencyId: string, rollEditionId: string): DuplicatePair[] {
+  const edition = getEdition(db, rollEditionId);
+  if (edition.constituencyId !== constituencyId) {
+    throw new AppError("constituency_isolation", "Roll edition is outside the selected constituency.");
+  }
   return (
     db
       .prepare("SELECT * FROM duplicate_pairs WHERE roll_edition_id = ? ORDER BY status, id")
@@ -442,13 +511,24 @@ export function findDuplicates(db: Database.Database, rollEditionId: string): Du
 
 export function reviewDuplicate(
   db: Database.Database,
-  id: string,
-  status: DuplicatePair["status"]
+  input: { id: string; constituencyId: string; status: DuplicatePair["status"] }
 ): void {
-  const row = db.prepare("SELECT id FROM duplicate_pairs WHERE id = ?").get(id);
+  const row = db
+    .prepare(
+      `SELECT d.id, e.constituency_id AS constituency_id
+       FROM duplicate_pairs d JOIN roll_editions e ON e.id = d.roll_edition_id WHERE d.id = ?`
+    )
+    .get(input.id) as { id: string; constituency_id: string } | undefined;
   if (!row) throw new AppError("not_found", "Duplicate pair not found.");
-  db.prepare("UPDATE duplicate_pairs SET status = ?, reviewed_at = ? WHERE id = ?").run(status, nowIso(), id);
-  writeAudit(db, { action: "update", entityType: "duplicate_pair", recordId: id, changedFields: ["status"] });
+  if (row.constituency_id !== input.constituencyId) {
+    throw new AppError("constituency_isolation", "Duplicate pair is outside the selected constituency.");
+  }
+  if (input.status === "flagged") {
+    db.prepare("UPDATE duplicate_pairs SET status = 'flagged', reviewed_at = NULL WHERE id = ?").run(input.id);
+  } else {
+    db.prepare("UPDATE duplicate_pairs SET status = ?, reviewed_at = ? WHERE id = ?").run(input.status, nowIso(), input.id);
+  }
+  writeAudit(db, { action: "update", entityType: "duplicate_pair", recordId: input.id, changedFields: ["status"] });
 }
 
 export function flagDuplicatesForEdition(db: Database.Database, rollEditionId: string): number {
@@ -460,35 +540,66 @@ export function flagDuplicatesForEdition(db: Database.Database, rollEditionId: s
      VALUES (?, ?, ?, ?, ?, 'flagged', NULL)
      ON CONFLICT(roll_edition_id, voter_a_id, voter_b_id) DO NOTHING`
   );
-  let flagged = 0;
-  const pair = (a: string, b: string) => (a < b ? [a, b] : [b, a]);
-  for (let i = 0; i < voters.length; i += 1) {
-    for (let j = i + 1; j < voters.length; j += 1) {
-      const a = voters[i]!;
-      const b = voters[j]!;
-      const reasons: string[] = [];
-      const idA = display(a.sourceElectoralId, a.localElectoralId).trim();
-      const idB = display(b.sourceElectoralId, b.localElectoralId).trim();
-      if (idA && idB && idA === idB) {
-        reasons.push("Same electoral identifier within this roll edition.");
-      }
-      const serialA = display(a.sourceRollSerial, a.localRollSerial).trim();
-      const serialB = display(b.sourceRollSerial, b.localRollSerial).trim();
-      const nameA = display(a.sourceName, a.localName).trim().toLowerCase();
-      const nameB = display(b.sourceName, b.localName).trim().toLowerCase();
-      if (serialA && serialB && serialA === serialB && nameA && nameA === nameB) {
-        reasons.push("Same roll serial and name in this edition (serials are not permanent identifiers).");
-      }
-      const addrA = display(a.sourceAddress, a.localAddress).trim().toLowerCase();
-      const addrB = display(b.sourceAddress, b.localAddress).trim().toLowerCase();
-      if (nameA && nameA === nameB && addrA && addrA === addrB) {
-        reasons.push("Name and address similarity — review hint only, not proof of the same person.");
-      }
-      if (reasons.length === 0) continue;
-      const [left, right] = pair(a.id, b.id);
-      const info = insert.run(newId(), rollEditionId, left, right, JSON.stringify(reasons));
-      if (info.changes > 0) flagged += 1;
+  const reasonsByPair = new Map<string, string[]>();
+  const add = (a: string, b: string, reason: string) => {
+    const [left, right] = a < b ? [a, b] : [b, a];
+    const key = `${left}|${right}`;
+    const list = reasonsByPair.get(key) ?? [];
+    if (!list.includes(reason)) list.push(reason);
+    reasonsByPair.set(key, list);
+  };
+  const byElectoral = new Map<string, string[]>();
+  const bySerialName = new Map<string, string[]>();
+  const byNameAddress = new Map<string, string[]>();
+  for (const voter of voters) {
+    const electoralId = display(voter.sourceElectoralId, voter.localElectoralId).trim();
+    const serial = display(voter.sourceRollSerial, voter.localRollSerial).trim();
+    const name = display(voter.sourceName, voter.localName).trim().toLowerCase();
+    const address = display(voter.sourceAddress, voter.localAddress).trim().toLowerCase();
+    if (electoralId) {
+      const list = byElectoral.get(electoralId) ?? [];
+      list.push(voter.id);
+      byElectoral.set(electoralId, list);
     }
+    if (serial && name) {
+      const key = `${serial}|${name}`;
+      const list = bySerialName.get(key) ?? [];
+      list.push(voter.id);
+      bySerialName.set(key, list);
+    }
+    if (name && address) {
+      const key = `${name}|${address}`;
+      const list = byNameAddress.get(key) ?? [];
+      list.push(voter.id);
+      byNameAddress.set(key, list);
+    }
+  }
+  for (const ids of byElectoral.values()) {
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        add(ids[i]!, ids[j]!, "Same electoral identifier within this roll edition.");
+      }
+    }
+  }
+  for (const ids of bySerialName.values()) {
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        add(ids[i]!, ids[j]!, "Same roll serial and name in this edition (serials are not permanent identifiers).");
+      }
+    }
+  }
+  for (const ids of byNameAddress.values()) {
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        add(ids[i]!, ids[j]!, "Name and address similarity — review hint only, not proof of the same person.");
+      }
+    }
+  }
+  let flagged = 0;
+  for (const [key, reasons] of reasonsByPair) {
+    const [left, right] = key.split("|") as [string, string];
+    const info = insert.run(newId(), rollEditionId, left, right, JSON.stringify(reasons));
+    if (info.changes > 0) flagged += 1;
   }
   return flagged;
 }

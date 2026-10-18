@@ -15,6 +15,8 @@ import { ElectionsPage } from "./pages/ElectionsPage";
 import { RuralPage } from "./pages/RuralPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UrbanPage } from "./pages/UrbanPage";
+import { ImportPage } from "./pages/ImportPage";
+import { VotersPage } from "./pages/VotersPage";
 import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
 
@@ -131,6 +133,12 @@ export function App(): JSX.Element {
           <NavLink data-testid="nav-wards" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/wards">
             {t(locale, "allWards")}
           </NavLink>
+          <NavLink data-testid="nav-voters" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/voters">
+            Voters
+          </NavLink>
+          <NavLink data-testid="nav-import" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/import">
+            Import
+          </NavLink>
           <NavLink data-testid="nav-coverage" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/coverage">
             Coverage
           </NavLink>
@@ -183,6 +191,8 @@ export function App(): JSX.Element {
           <Route path="/urban/*" element={<UrbanPage model={model} />} />
           <Route path="/wards" element={<WardsPage model={model} />} />
           <Route path="/wards/:id/*" element={<WardWorkspacePage model={model} />} />
+          <Route path="/voters" element={<VotersPage model={model} />} />
+          <Route path="/import" element={<ImportPage model={model} />} />
           <Route path="/coverage" element={<CoveragePage model={model} />} />
           <Route path="/backup" element={<BackupPage model={model} />} />
           <Route path="/settings" element={<SettingsPage model={model} />} />

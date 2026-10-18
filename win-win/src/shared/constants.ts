@@ -1,7 +1,7 @@
 export const APP_ID = "win-win.local.election-admin";
 export const APP_NAME = "WIN WIN";
 export const APP_VERSION = "1.0.0";
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const MIN_COMPATIBLE_SCHEMA = 1;
 export const BACKUP_MAGIC = "WWINBAK1";
 export const BACKUP_FORMAT_VERSION = 1;
@@ -61,3 +61,28 @@ export const VERIFICATION_STATUSES = ["unverified", "verified", "needs_review"] 
 export const DUPLICATE_PAIR_STATUSES = ["flagged", "distinct", "confirmed_duplicate_import"] as const;
 export const IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 export const IMPORT_MAX_ROWS = 50_000;
+export const VOTER_EXPORT_FIELDS = [
+  "displayName",
+  "displayNameEn",
+  "displayElectoralId",
+  "displayRollSerial",
+  "publishedAge",
+  "ageReferenceDate",
+  "displayAddress",
+  "ward",
+  "rollEdition",
+  "verificationStatus",
+  "sourceRow",
+  "sourceSection",
+  "sourcePage"
+] as const;
+export const VOTER_PERSONAL_EXPORT_FIELDS = [
+  "displayName",
+  "displayNameEn",
+  "displayElectoralId",
+  "displayRollSerial",
+  "publishedAge",
+  "ageReferenceDate",
+  "displayAddress"
+] as const;
+export type VoterExportField = (typeof VOTER_EXPORT_FIELDS)[number];

@@ -17,7 +17,10 @@ import {
   ISSUE_STATUSES,
   ISSUE_PRIORITIES,
   TASK_STATUSES,
-  ISSUE_CATEGORIES
+  ISSUE_CATEGORIES,
+  VERIFICATION_STATUSES,
+  DUPLICATE_PAIR_STATUSES,
+  VOTER_EXPORT_FIELDS
 } from "@shared/constants";
 import { IpcChannel } from "@shared/ipc";
 import { toErrorPayload, AppError } from "../errors";
@@ -85,7 +88,37 @@ import {
   updateTask,
   wardOverview
 } from "../services/workspace";
-import { idSchema, namedSchema } from "./schemas";
+import { idSchema, mappingSchema, namedSchema, voterFilters } from "./schemas";
+import { exportVotersCsv, exportVotersXlsx } from "../services/export-voters";
+import {
+  assignStagedWards,
+  cancelImport,
+  commitImport,
+  createSession,
+  errorReportCsv,
+  readTabularFile,
+  setEdition,
+  setMapping,
+  sha256File,
+  templateCsv,
+  templateXlsx,
+  validateSession
+} from "../services/import-voters";
+import {
+  archiveEdition,
+  archiveVoter,
+  assignWardsBulk,
+  createEdition,
+  createVoter,
+  editionCounts,
+  findDuplicates,
+  getVoterDetail,
+  listEditions,
+  listVoters,
+  listVotersForExport,
+  reviewDuplicate,
+  updateVoter
+} from "../services/voters";
 
 const optionalId = z.string().min(1).optional();
 const coverageKind = z.enum(COVERAGE_KINDS);
@@ -570,5 +603,262 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     IpcChannel.wardOverview,
     z.object({ wardId: z.string().min(1), constituencyId: z.string().min(1) }),
     (input) => wardOverview(db(), input as Parameters<typeof wardOverview>[1])
+  );
+
+  handle(
+    IpcChannel.editionList,
+    z.object({ constituencyId: z.string().min(1), includeArchived: z.boolean().optional() }),
+    (input) => {
+      const { constituencyId, includeArchived } = input as { constituencyId: string; includeArchived?: boolean };
+      return listEditions(db(), constituencyId, Boolean(includeArchived));
+    }
+  );
+  handle(
+    IpcChannel.editionCreate,
+    z.object({
+      constituencyId: z.string().min(1),
+      boundaryVersionId: z.string().min(1),
+      name: z.string().min(1),
+      revisionCode: z.string().optional(),
+      publishedOn: z.string().nullable().optional(),
+      notes: z.string().optional()
+    }),
+    (input) => createEdition(db(), input as Parameters<typeof createEdition>[1])
+  );
+  handle(
+    IpcChannel.editionArchive,
+    z.object({ id: z.string().min(1), constituencyId: z.string().min(1) }),
+    (input) => {
+      const { id, constituencyId } = input as { id: string; constituencyId: string };
+      return archiveEdition(db(), id, constituencyId);
+    }
+  );
+  handle(
+    IpcChannel.editionCounts,
+    z.object({ constituencyId: z.string().min(1), rollEditionId: z.string().min(1) }),
+    (input) => editionCounts(db(), (input as { constituencyId: string }).constituencyId, (input as { rollEditionId: string }).rollEditionId)
+  );
+
+  const voterWrite = z.object({
+    rollEditionId: z.string().min(1),
+    constituencyId: z.string().min(1),
+    sourceName: z.string().optional(),
+    sourceNameEn: z.string().optional(),
+    sourceElectoralId: z.string().optional(),
+    sourceRollSerial: z.string().optional(),
+    sourceAge: z.string().optional(),
+    sourceAgeReferenceDate: z.string().optional(),
+    sourceAddress: z.string().optional(),
+    sourceSection: z.string().optional(),
+    sourcePage: z.string().optional(),
+    assignedWardId: z.string().nullable().optional(),
+    verificationStatus: z.enum(VERIFICATION_STATUSES).optional()
+  });
+  handle(IpcChannel.voterList, voterFilters, (input) => listVoters(db(), input as Parameters<typeof listVoters>[1]));
+  handle(IpcChannel.voterGet, z.object({ id: z.string().min(1), constituencyId: z.string().min(1) }), (input) => {
+    const { id, constituencyId } = input as { id: string; constituencyId: string };
+    return getVoterDetail(db(), id, constituencyId);
+  });
+  handle(IpcChannel.voterCreate, voterWrite, (input) => createVoter(db(), input as Parameters<typeof createVoter>[1]));
+  handle(
+    IpcChannel.voterUpdate,
+    z.object({
+      id: z.string().min(1),
+      constituencyId: z.string().min(1),
+      localName: z.string().nullable().optional(),
+      localNameEn: z.string().nullable().optional(),
+      localElectoralId: z.string().nullable().optional(),
+      localRollSerial: z.string().nullable().optional(),
+      localAge: z.string().nullable().optional(),
+      localAgeReferenceDate: z.string().nullable().optional(),
+      localAddress: z.string().nullable().optional(),
+      assignedWardId: z.string().nullable().optional(),
+      verificationStatus: z.enum(VERIFICATION_STATUSES).optional(),
+      verifiedAt: z.string().nullable().optional()
+    }),
+    (input) => updateVoter(db(), input as Parameters<typeof updateVoter>[1])
+  );
+  handle(
+    IpcChannel.voterArchive,
+    z.object({ id: z.string().min(1), constituencyId: z.string().min(1), reason: z.string().min(1) }),
+    (input) => {
+      const { id, constituencyId, reason } = input as { id: string; constituencyId: string; reason: string };
+      return archiveVoter(db(), id, constituencyId, reason);
+    }
+  );
+  handle(
+    IpcChannel.voterAssignBulk,
+    z.object({
+      constituencyId: z.string().min(1),
+      voterIds: z.array(z.string().min(1)).min(1),
+      wardId: z.string().nullable(),
+      reason: z.string().min(1),
+      verificationSource: z.string().optional()
+    }),
+    (input) => ({ updated: assignWardsBulk(db(), input as Parameters<typeof assignWardsBulk>[1]) })
+  );
+
+  async function savePath(kind: "import" | "export" | "template" | "errors", defaultName: string, filters: Electron.FileFilter[]): Promise<string | null> {
+    const envKey =
+      kind === "import"
+        ? "WINWIN_TEST_IMPORT_FILE"
+        : kind === "export"
+          ? "WINWIN_TEST_EXPORT_FILE"
+          : kind === "template"
+            ? "WINWIN_TEST_TEMPLATE_FILE"
+            : "WINWIN_TEST_ERROR_REPORT_FILE";
+    const automated = !app.isPackaged ? process.env[envKey] : undefined;
+    if (automated) {
+      fs.mkdirSync(path.dirname(automated), { recursive: true });
+      return automated;
+    }
+    const win = getWindow();
+    const options = { defaultPath: path.join(manager.paths.backupsDir, defaultName), filters };
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    return result.canceled ? null : result.filePath ?? null;
+  }
+
+  handle(
+    IpcChannel.voterExport,
+    z.object({
+      filters: voterFilters,
+      fields: z.array(z.enum(VOTER_EXPORT_FIELDS)).min(1),
+      format: z.enum(["csv", "xlsx"])
+    }),
+    async (input) => {
+      const { filters, fields, format } = input as {
+        filters: Parameters<typeof listVotersForExport>[1];
+        fields: string[];
+        format: "csv" | "xlsx";
+      };
+      const items = listVotersForExport(db(), filters);
+      const dest = await savePath(
+        "export",
+        format === "xlsx" ? "voters.xlsx" : "voters.csv",
+        format === "xlsx"
+          ? [{ name: "Excel", extensions: ["xlsx"] }]
+          : [{ name: "CSV", extensions: ["csv"] }]
+      );
+      if (!dest) return { cancelled: true };
+      if (format === "xlsx") fs.writeFileSync(dest, await exportVotersXlsx(items, fields));
+      else fs.writeFileSync(dest, exportVotersCsv(items, fields), "utf8");
+      return { cancelled: false, path: dest, count: items.length };
+    }
+  );
+
+  handle(IpcChannel.importOpen, z.object({ constituencyId: z.string().min(1) }), async (input) => {
+    const constituencyId = (input as { constituencyId: string }).constituencyId;
+    const automated = !app.isPackaged ? process.env.WINWIN_TEST_IMPORT_FILE : undefined;
+    let filePath: string | null = automated ?? null;
+    if (!filePath) {
+      const win = getWindow();
+      const options = {
+        filters: [{ name: "CSV or Excel", extensions: ["csv", "xlsx", "txt"] }],
+        properties: ["openFile" as const]
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      filePath = result.canceled ? null : result.filePaths[0] ?? null;
+    }
+    if (!filePath) return { cancelled: true as const };
+    const table = await readTabularFile(filePath);
+    const sha = sha256File(filePath);
+    return createSession(db(), {
+      constituencyId,
+      columns: table.columns,
+      rows: table.rows,
+      fileName: path.basename(filePath),
+      sha,
+      formulaMask: table.formulaMask,
+      formulaCellCount: table.formulaCellCount,
+      numericCoercionCount: table.numericCoercionCount
+    });
+  });
+  handle(
+    IpcChannel.importSetEdition,
+    z.object({ sessionId: z.string().min(1), rollEditionId: z.string().min(1) }),
+    (input) => {
+      const { sessionId, rollEditionId } = input as { sessionId: string; rollEditionId: string };
+      return setEdition(db(), sessionId, rollEditionId);
+    }
+  );
+  handle(
+    IpcChannel.importSetMapping,
+    z.object({ sessionId: z.string().min(1), mapping: mappingSchema }),
+    (input) => {
+      const { sessionId, mapping } = input as { sessionId: string; mapping: Parameters<typeof setMapping>[1] };
+      return setMapping(sessionId, mapping);
+    }
+  );
+  handle(IpcChannel.importValidate, z.object({ sessionId: z.string().min(1) }), (input) =>
+    validateSession(db(), (input as { sessionId: string }).sessionId)
+  );
+  handle(
+    IpcChannel.importAssignStaged,
+    z.object({
+      sessionId: z.string().min(1),
+      sourceRowNumbers: z.array(z.number().int().positive()).min(1),
+      wardId: z.string().nullable()
+    }),
+    (input) => {
+      const { sessionId, sourceRowNumbers, wardId } = input as {
+        sessionId: string;
+        sourceRowNumbers: number[];
+        wardId: string | null;
+      };
+      return assignStagedWards(db(), sessionId, sourceRowNumbers, wardId);
+    }
+  );
+  handle(
+    IpcChannel.importCommit,
+    z.object({ sessionId: z.string().min(1), acknowledgeRepeat: z.boolean().optional() }),
+    (input) => {
+      const { sessionId, acknowledgeRepeat } = input as { sessionId: string; acknowledgeRepeat?: boolean };
+      return commitImport(db(), sessionId, Boolean(acknowledgeRepeat));
+    }
+  );
+  handle(IpcChannel.importCancel, z.object({ sessionId: z.string().min(1) }), (input) => {
+    cancelImport((input as { sessionId: string }).sessionId);
+  });
+  handle(IpcChannel.importTemplate, z.object({ format: z.enum(["csv", "xlsx"]) }), async (input) => {
+    const format = (input as { format: "csv" | "xlsx" }).format;
+    const dest = await savePath(
+      "template",
+      format === "xlsx" ? "win-win-voter-template.xlsx" : "win-win-voter-template.csv",
+      format === "xlsx" ? [{ name: "Excel", extensions: ["xlsx"] }] : [{ name: "CSV", extensions: ["csv"] }]
+    );
+    if (!dest) return { cancelled: true };
+    if (format === "xlsx") fs.writeFileSync(dest, await templateXlsx());
+    else fs.writeFileSync(dest, templateCsv(), "utf8");
+    return { cancelled: false, path: dest };
+  });
+  handle(
+    IpcChannel.importErrorReport,
+    z.object({
+      issues: z.array(z.object({ sourceRowNumber: z.number(), field: z.string(), message: z.string() }))
+    }),
+    async (input) => {
+      const issues = (input as { issues: Array<{ sourceRowNumber: number; field: string; message: string }> }).issues;
+      const dest = await savePath("errors", "import-errors.csv", [{ name: "CSV", extensions: ["csv"] }]);
+      if (!dest) return { cancelled: true };
+      fs.writeFileSync(dest, errorReportCsv({ rows: [], errorCount: issues.length, unassignedCount: 0, ambiguousCount: 0, assignedCount: 0, issues }), "utf8");
+      return { cancelled: false, path: dest };
+    }
+  );
+  handle(
+    IpcChannel.duplicateList,
+    z.object({ constituencyId: z.string().min(1), rollEditionId: z.string().min(1) }),
+    (input) => {
+      const { constituencyId, rollEditionId } = input as { constituencyId: string; rollEditionId: string };
+      return findDuplicates(db(), constituencyId, rollEditionId);
+    }
+  );
+  handle(
+    IpcChannel.duplicateReview,
+    z.object({
+      id: z.string().min(1),
+      constituencyId: z.string().min(1),
+      status: z.enum(DUPLICATE_PAIR_STATUSES)
+    }),
+    (input) => reviewDuplicate(db(), input as Parameters<typeof reviewDuplicate>[1])
   );
 }

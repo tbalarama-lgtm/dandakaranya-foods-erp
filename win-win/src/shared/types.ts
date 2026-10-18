@@ -405,6 +405,7 @@ export interface VoterFilters {
   verificationStatus?: VerificationStatus | "";
   query?: string;
   unassignedOnly?: boolean;
+  assignedOnly?: boolean;
   includeArchived?: boolean;
   page?: number;
   pageSize?: number;
@@ -423,6 +424,44 @@ export interface ImportColumnMapping {
   sourcePage?: string;
 }
 
+export interface RollEditionCounts {
+  rollEditionId: string;
+  editionName: string;
+  revisionCode: string;
+  total: number;
+  assigned: number;
+  unassigned: number;
+  archived: number;
+  unverified: number;
+  verified: number;
+  needsReview: number;
+}
+
+export interface WardAssignmentHistoryEntry {
+  id: string;
+  fromWardId: string | null;
+  toWardId: string | null;
+  reason: string;
+  verificationSource: string;
+  changedAt: string;
+}
+
+export interface VoterChangeHistoryEntry {
+  id: string;
+  changedAt: string;
+  action: string;
+  fieldNames: string[];
+}
+
+export interface VoterDetail {
+  voter: VoterListItem;
+  changeHistory: VoterChangeHistoryEntry[];
+  assignmentHistory: WardAssignmentHistoryEntry[];
+  importBatch: { id: string; fileName: string; fileSha256: string; createdAt: string } | null;
+}
+
+export type VoterExportField = import("./constants").VoterExportField;
+
 export interface ImportPreview {
   sessionId: string;
   fileName: string;
@@ -430,6 +469,9 @@ export interface ImportPreview {
   columns: string[];
   previewRows: string[][];
   rowCount: number;
+  formulaCellCount: number;
+  numericCoercionCount: number;
+  suggestedMapping: ImportColumnMapping;
   repeatedImport: boolean;
   previousBatchId: string | null;
 }
@@ -462,6 +504,7 @@ export interface ImportCommitResult {
   imported: number;
   batchId: string;
   flaggedDuplicates: number;
+  unassigned: number;
 }
 
 export interface DuplicatePair {
