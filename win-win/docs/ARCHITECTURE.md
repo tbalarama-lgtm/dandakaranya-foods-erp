@@ -29,3 +29,5 @@ Administrative units are independent of constituencies. `constituency_coverage` 
 Wards belong to a boundary version. Unique ward numbers are scoped to parent local body + boundary version.
 
 Elections pin a boundary version and store name snapshots; archived workspaces cannot be edited.
+
+Phase 2 ward workspace stores people separately from ward contact links, team assignments, issues (with status history) and tasks. Writes require the ward to be in the selected constituency coverage. Audit logs field names only.
