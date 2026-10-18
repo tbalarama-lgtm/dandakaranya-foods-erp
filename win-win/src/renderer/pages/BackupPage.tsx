@@ -44,14 +44,14 @@ export function BackupPage({ model }: { model: AppModel }): JSX.Element {
         </p>
         <p>The active database file cannot be chosen as a backup destination.</p>
         <div className="row">
-          <button className="btn" disabled={busy} type="button" onClick={() => void backup()}>
+          <button className="btn" id="backup-create" data-testid="backup-create" disabled={busy} type="button" onClick={() => void backup()}>
             Create backup
           </button>
-          <button className="btn danger" disabled={busy} type="button" onClick={() => void restore()}>
+          <button className="btn danger" id="backup-restore" data-testid="backup-restore" disabled={busy} type="button" onClick={() => void restore()}>
             Restore from file
           </button>
         </div>
-        {message ? <pre>{message}</pre> : null}
+        {message ? <pre data-testid="backup-message">{message}</pre> : null}
       </article>
     </section>
   );

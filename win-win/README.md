@@ -6,72 +6,42 @@ The database and backups are **not encrypted**. An application password is not u
 
 This is not an electronic ballot or official result-certification system.
 
-## Requirements
+## Windows / macOS quick start
 
-- Node.js 20+ (this project was developed with Node 22)
-- Windows 10/11 x64 **or** macOS (Apple Silicon or Intel), for running the packaged app
-- Linux can be used for development, tests and production JS builds
+### Prerequisites
 
-## Install (any desktop OS)
+- Node.js 20 or newer (developed with Node 22)
+- Windows 10/11 x64, or macOS (Apple Silicon or Intel)
+- For installers: run the packager **on the target OS** (`dist:win` on Windows, `dist:mac` on macOS)
 
-```bash
-cd win-win
-npm install
-```
-
-`postinstall` rebuilds `better-sqlite3` for Electron via `electron-builder install-app-deps`.
-
-`better-sqlite3` is a native module. `npm install` rebuilds it for **Electron**. Automated tests run in **Node**, so `npm test` rebuilds the module for the current Node.js ABI first. After tests, rebuild for Electron before `npm run dev`:
-
-```bash
-npm run rebuild:native
-```
-
-## Develop
-
-**Windows**
+### Install
 
 ```bat
 cd win-win
 npm install
+```
+
+`postinstall` rebuilds `better-sqlite3` for **Electron** (`electron-builder install-app-deps`).
+
+### Launch
+
+```bat
 npm run dev
 ```
 
-**macOS / Linux**
+Sandbox stays enabled. Do not add `--no-sandbox` on Windows or macOS.
+
+Linux development: Chromium may refuse to start if the sandbox cannot be configured. That is an environment-specific test workaround only:
 
 ```bash
-cd win-win
-npm install
-npm run dev
+WINWIN_LINUX_NO_SANDBOX=1 npm run test:ui-profile
 ```
 
-The app stores data in Electron `userData` (not the install folder):
+Do not use `--no-sandbox` as a production default.
 
-- Windows: `%APPDATA%\WIN WIN\win-win-data\`
-- macOS: `~/Library/Application Support/WIN WIN/win-win-data/`
-- Linux: `~/.config/WIN WIN/win-win-data/`
+### Build installer
 
-## Checks
-
-```bash
-cd win-win
-npm run typecheck
-npm test
-npm run build
-```
-
-## Production JS build
-
-```bash
-cd win-win
-npm run build
-```
-
-Outputs `out/main`, `out/preload`, `out/renderer`.
-
-## Windows installer (run on Windows x64)
-
-Unsigned development package (no signing credentials required):
+Windows (run on Windows x64):
 
 ```bat
 cd win-win
@@ -79,13 +49,9 @@ npm install
 npm run dist:win
 ```
 
-Installer appears under `win-win/release/` as `WIN-WIN-Setup-1.0.0-windows-x64.exe`.
+Output: `win-win/release/WIN-WIN-Setup-1.0.0-windows-x64.exe` (unsigned).
 
-Signed distribution: set Windows Authenticode credentials (`CSC_LINK` / `CSC_KEY_PASSWORD` or Azure SignTool) and remove `signAndEditExecutable: false` / `forceCodeSigning: false` in `electron-builder.yml`. This repository does not include certificates.
-
-## macOS DMG (run on macOS)
-
-Unsigned development package (`mac.identity` is `null`):
+macOS (run on macOS):
 
 ```bash
 cd win-win
@@ -93,17 +59,76 @@ npm install
 npm run dist:mac
 ```
 
-Apple Silicon and Intel DMGs are requested via electron-builder (`arm64` and `x64`).
+Output: `win-win/release/WIN-WIN-1.0.0-macos-arm64.dmg` and `…-x64.dmg` (unsigned; `mac.identity` is `null`).
 
-Signed + notarized distribution requires an Apple Developer ID, hardened runtime entitlements, and notarization (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`). Local development does not require those credentials. Unsigned builds will be Gatekeeper-blocked until the user allows them.
+A Linux machine can typecheck, test, and compile the JS bundle. It cannot prove that a Windows or macOS installer works.
 
-Do not treat a Linux-produced artifact as a tested Windows or macOS installer.
+### Data location
 
-## Backup and restore
+User data is **outside** the application folder (Electron `userData`):
 
-Use **Backup** in the app. Files use the portable `.winwinbak` format (UTF-8, no OS-specific paths). Copy the file to another computer and restore there. That is a **manual transfer**, not live sync.
+| OS | Packaged app | Unpackaged `npm run dev` |
+| --- | --- | --- |
+| Windows | `%APPDATA%\WIN WIN\win-win-data\` | `%APPDATA%\win-win\win-win-data\` |
+| macOS | `~/Library/Application Support/WIN WIN/win-win-data/` | `~/Library/Application Support/win-win/win-win-data/` |
+| Linux | `~/.config/WIN WIN/win-win-data/` | `~/.config/win-win/win-win-data/` |
 
-Restore validates application identity, SQLite integrity and schema compatibility, keeps a recovery copy, and reinstates it if replacement fails.
+Database file: `win-win.sqlite`. Uninstallers do not delete this folder (`deleteAppDataOnUninstall: false`).
+
+### Backup and restore
+
+1. Open **Backup**.
+2. **Create backup** writes a portable `.winwinbak` file (default folder: `win-win-data/backups/`).
+3. Copy that file to another computer if needed. That is a **manual transfer**, not live sync.
+4. **Restore from file** validates identity, SQLite integrity and schema, keeps a recovery copy, and reinstates it if replacement fails.
+
+The live database file cannot be chosen as a backup destination.
+
+## Native module ABI (tests vs Electron)
+
+`better-sqlite3` must match the process that loads it.
+
+| Command | ABI |
+| --- | --- |
+| `npm install` / `npm run rebuild:electron` / `npm run dev` / packaging | Electron |
+| `npm test` | Node for Vitest, then **always** restores Electron |
+| `npm run rebuild:node` | Node only (leaves Electron broken until you restore) |
+
+`npm test` is `node scripts/run-tests.mjs`. It rebuilds for Node, runs Vitest, then runs `electron-builder install-app-deps` even when tests fail. Do not chain `&&` rebuilds in the shell; the Node scripts work on Windows and macOS.
+
+```bat
+npm run typecheck
+npm test
+npm run build
+```
+
+`npm run test:watch` does **not** restore Electron. After a watch session:
+
+```bat
+npm run rebuild:electron
+```
+
+Isolated UI profile (does not touch the normal database):
+
+```bat
+npm run build
+npm run test:ui-profile
+```
+
+## Production JS build
+
+```bat
+npm run build
+```
+
+Outputs `out/main`, `out/preload` (`index.cjs`), `out/renderer`. Packaging includes those plus production Node modules. Native `.node` files are unpacked from asar (`better-sqlite3`). Schema migrations ship inside the main process bundle (`src/main/db/schema.ts` compiled to `out/main`).
+
+Startup entry: `out/main/index.js` (`package.json` `main` and `electron-builder.yml` `extraMetadata.main`).
+
+## Signing
+
+- Windows: this repo sets `signAndEditExecutable: false` / `forceCodeSigning: false`. Add Authenticode credentials for a signed build.
+- macOS: unsigned DMGs are Gatekeeper-blocked until allowed. Notarization needs an Apple Developer ID.
 
 ## Demo data
 

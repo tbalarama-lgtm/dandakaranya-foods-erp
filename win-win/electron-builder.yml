@@ -10,11 +10,15 @@ nodeGypRebuild: false
 directories:
   output: release
 files:
-  - out/**/*
-  - package.json
+  - "out/**/*"
+  - "package.json"
+  - "!**/*.map"
+  - "!**/out/types-*/**"
 extraMetadata:
   main: out/main/index.js
 forceCodeSigning: false
+electronLanguages:
+  - en
 win:
   target:
     - target: nsis
@@ -22,6 +26,7 @@ win:
         - x64
   artifactName: WIN-WIN-Setup-${version}-windows-${arch}.${ext}
   signAndEditExecutable: false
+  executableName: WIN WIN
 nsis:
   oneClick: false
   perMachine: false
@@ -43,8 +48,10 @@ mac:
   hardenedRuntime: true
   gatekeeperAssess: false
   darkModeSupport: false
+  executableName: WIN WIN
 dmg:
   artifactName: WIN-WIN-${version}-macos-${arch}.${ext}
 linux:
   target:
     - dir
+  executableName: win-win

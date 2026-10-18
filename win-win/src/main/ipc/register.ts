@@ -1,4 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import {
   APP_ID,
@@ -91,17 +93,25 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
   const db = () => manager.get();
   const dialogs = (): BackupDialogs => ({
     async saveFile(defaultName: string) {
+      const automated = process.env.WINWIN_TEST_BACKUP_FILE;
+      if (automated) {
+        fs.mkdirSync(path.dirname(automated), { recursive: true });
+        return automated;
+      }
       const win = getWindow();
       const options = {
-        defaultPath: defaultName,
+        defaultPath: path.join(manager.paths.backupsDir, defaultName),
         filters: [{ name: "WIN WIN backup", extensions: ["winwinbak"] }]
       };
       const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
       return result.canceled ? null : result.filePath ?? null;
     },
     async openFile() {
+      const automated = process.env.WINWIN_TEST_BACKUP_FILE;
+      if (automated) return automated;
       const win = getWindow();
       const options = {
+        defaultPath: manager.paths.backupsDir,
         filters: [{ name: "WIN WIN backup", extensions: ["winwinbak"] }],
         properties: ["openFile" as const]
       };
@@ -109,6 +119,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       return result.canceled ? null : result.filePaths[0] ?? null;
     },
     async confirm(message: string) {
+      if (process.env.WINWIN_TEST_BACKUP_FILE) return true;
       const win = getWindow();
       const options = {
         type: "warning" as const,

@@ -45,9 +45,9 @@ export function DashboardPage({ model }: { model: AppModel }): JSX.Element {
       <p className="breadcrumb">Counts use distinct units in the selected constituency coverage. Partial coverage is never treated as complete.</p>
       <div className="grid stats">
         {cards.map(([label, value]) => (
-          <article className="card stat" key={String(label)}>
+          <article className="card stat" key={String(label)} data-testid={`stat-${String(label).toLowerCase().replaceAll(" ", "-")}`}>
             <span>{label}</span>
-            <b>{value}</b>
+            <b data-testid={`stat-value-${String(label).toLowerCase().replaceAll(" ", "-")}`}>{value}</b>
           </article>
         ))}
       </div>

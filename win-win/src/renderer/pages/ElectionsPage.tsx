@@ -34,7 +34,11 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
 
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (!model.constituencyId || !model.boundaryVersionId) return;
+    model.setError(null);
+    if (!model.constituencyId || !model.boundaryVersionId) {
+      model.setError("Select a constituency and boundary version first.");
+      return;
+    }
     try {
       await model.api.electionCreate({
         name,
@@ -60,7 +64,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
       <h1>Election workspaces</h1>
       <p>Archives keep original geographic snapshots. Changing current boundaries does not rewrite archived records.</p>
       <article className="card">
-        <table className="table">
+        <table className="table" data-testid="election-table">
           <thead>
             <tr>
               <th>Name</th>
@@ -84,6 +88,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
                     <button
                       className="btn secondary"
                       type="button"
+                      data-testid={`election-archive-${row.id}`}
                       onClick={async () => {
                         if (!window.confirm("Archive this workspace and freeze its geographic references?")) return;
                         await model.api.electionArchive(row.id);
@@ -102,11 +107,11 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
         </table>
         {rows.length === 0 ? <p className="empty">No election workspaces yet.</p> : null}
       </article>
-      <form className="card grid" onSubmit={onSubmit}>
+      <form className="card grid" onSubmit={onSubmit} data-testid="election-form">
         <h2>Create workspace</h2>
         <label>
           Name
-          <input required value={name} onChange={(e) => setName(e.target.value)} />
+          <input id="election-name" data-testid="election-name" required value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label>
           Type
@@ -148,7 +153,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
             </label>
           ))}
         </fieldset>
-        <button className="btn" type="submit">
+        <button className="btn" id="election-create" data-testid="election-create" type="submit">
           Create
         </button>
       </form>

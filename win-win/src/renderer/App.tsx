@@ -116,28 +116,28 @@ export function App(): JSX.Element {
           WIN <span>WIN</span>
         </div>
         <nav>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/">
+          <NavLink data-testid="nav-dashboard" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/">
             {t(locale, "dashboard")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/elections">
+          <NavLink data-testid="nav-elections" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/elections">
             {t(locale, "elections")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/rural">
+          <NavLink data-testid="nav-rural" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/rural">
             {t(locale, "rural")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/urban">
+          <NavLink data-testid="nav-urban" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/urban">
             {t(locale, "urban")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/wards">
+          <NavLink data-testid="nav-wards" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/wards">
             {t(locale, "allWards")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/coverage">
+          <NavLink data-testid="nav-coverage" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/coverage">
             Coverage
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/backup">
+          <NavLink data-testid="nav-backup" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/backup">
             {t(locale, "backup")}
           </NavLink>
-          <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/settings">
+          <NavLink data-testid="nav-settings" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/settings">
             {t(locale, "settings")}
           </NavLink>
         </nav>
@@ -146,7 +146,7 @@ export function App(): JSX.Element {
         <div className="topbar">
           <label>
             {t(locale, "constituency")}
-            <select value={constituencyId} onChange={(e) => setConstituencyId(e.target.value)}>
+            <select id="topbar-constituency" data-testid="topbar-constituency" value={constituencyId} onChange={(e) => setConstituencyId(e.target.value)}>
               <option value="">Select…</option>
               {constituencies.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -157,7 +157,7 @@ export function App(): JSX.Element {
           </label>
           <label>
             {t(locale, "boundaryVersion")}
-            <select value={boundaryVersionId} onChange={(e) => setBoundaryVersionId(e.target.value)}>
+            <select id="topbar-boundary" data-testid="topbar-boundary" value={boundaryVersionId} onChange={(e) => setBoundaryVersionId(e.target.value)}>
               <option value="">Select…</option>
               {boundaries.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -171,7 +171,11 @@ export function App(): JSX.Element {
           </button>
         </div>
         {settings?.dataKind === "demo" ? <div className="banner">{t(locale, "demoBanner")}</div> : null}
-        {error ? <div className="error">{error}</div> : null}
+        {error ? (
+          <div className="error" data-testid="app-error" role="alert">
+            {error}
+          </div>
+        ) : null}
         <Routes>
           <Route path="/" element={<DashboardPage model={model} />} />
           <Route path="/elections" element={<ElectionsPage model={model} />} />

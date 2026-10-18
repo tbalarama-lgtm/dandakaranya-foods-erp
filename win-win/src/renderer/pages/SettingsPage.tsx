@@ -28,6 +28,7 @@ export function SettingsPage({ model }: { model: AppModel }): JSX.Element {
   async function saveSettings(event: FormEvent): Promise<void> {
     event.preventDefault();
     setBusy(true);
+    model.setError(null);
     try {
       await model.api.settingsUpdate({
         organizationName: org,
@@ -45,6 +46,7 @@ export function SettingsPage({ model }: { model: AppModel }): JSX.Element {
   async function createConstituency(event: FormEvent): Promise<void> {
     event.preventDefault();
     setBusy(true);
+    model.setError(null);
     try {
       const created = await model.api.constituencyCreate({ name: cName, nameTe: cNameTe });
       setCName("");
@@ -61,6 +63,7 @@ export function SettingsPage({ model }: { model: AppModel }): JSX.Element {
   async function createBoundary(event: FormEvent): Promise<void> {
     event.preventDefault();
     setBusy(true);
+    model.setError(null);
     try {
       const created = await model.api.boundaryCreate({ name: bName, effectiveFrom: bFrom, status: "active" });
       setBName("");
@@ -107,37 +110,37 @@ export function SettingsPage({ model }: { model: AppModel }): JSX.Element {
       <article className="card grid">
         <h2>Application data</h2>
         <p>Version {model.info?.version} · schema {model.info?.schemaVersion}</p>
-        <p>Data location: {model.info?.dataDirectory}</p>
-        <p>Database: {model.info?.databasePath}</p>
+        <p data-testid="settings-data-dir">Data location: {model.info?.dataDirectory}</p>
+        <p data-testid="settings-db-path">Database: {model.info?.databasePath}</p>
         <p>{t(model.locale, "notEncrypted")}</p>
       </article>
 
-      <form className="card grid" onSubmit={createConstituency}>
+      <form className="card grid" onSubmit={createConstituency} data-testid="constituency-form">
         <h2>Create assembly constituency</h2>
         <label>
           Name
-          <input required value={cName} onChange={(e) => setCName(e.target.value)} />
+          <input id="constituency-name" data-testid="constituency-name" required value={cName} onChange={(e) => setCName(e.target.value)} />
         </label>
         <label>
           Telugu name
-          <input value={cNameTe} onChange={(e) => setCNameTe(e.target.value)} />
+          <input id="constituency-name-te" value={cNameTe} onChange={(e) => setCNameTe(e.target.value)} />
         </label>
-        <button className="btn" disabled={busy} type="submit">
+        <button className="btn" id="constituency-create" data-testid="constituency-create" disabled={busy} type="submit">
           Create constituency
         </button>
       </form>
 
-      <form className="card grid" onSubmit={createBoundary}>
+      <form className="card grid" onSubmit={createBoundary} data-testid="boundary-form">
         <h2>Create boundary version</h2>
         <label>
           Name
-          <input required value={bName} onChange={(e) => setBName(e.target.value)} />
+          <input id="boundary-name" data-testid="boundary-name" required value={bName} onChange={(e) => setBName(e.target.value)} />
         </label>
         <label>
           Effective from
-          <input type="date" required value={bFrom} onChange={(e) => setBFrom(e.target.value)} />
+          <input id="boundary-from" type="date" required value={bFrom} onChange={(e) => setBFrom(e.target.value)} />
         </label>
-        <button className="btn" disabled={busy} type="submit">
+        <button className="btn" id="boundary-create" data-testid="boundary-create" disabled={busy} type="submit">
           Create boundary version
         </button>
         <ul>

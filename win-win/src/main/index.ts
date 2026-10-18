@@ -87,10 +87,10 @@ function applySecurity(): void {
 
 app.whenReady().then(() => {
   applySecurity();
+  manager = new DatabaseManager(resolveDataPaths(app.getPath("userData")));
+  registerIpc(manager, () => mainWindow);
   try {
-    manager = new DatabaseManager(resolveDataPaths(app.getPath("userData")));
     manager.open();
-    registerIpc(manager, () => mainWindow);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("WIN WIN failed to open the database:", message);

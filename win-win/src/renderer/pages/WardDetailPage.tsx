@@ -45,7 +45,9 @@ export function WardDetailPage({ model }: { model: AppModel }): JSX.Element {
 
   return (
     <section className="grid">
-      <p className="breadcrumb">{crumbs.join(" → ")}</p>
+      <p className="breadcrumb" data-testid="ward-breadcrumb">
+        {crumbs.join(" → ")}
+      </p>
       <h1>
         {detail.ward.name} <span className="chip">{detail.ward.classification}</span>
       </h1>
@@ -86,10 +88,10 @@ export function WardDetailPage({ model }: { model: AppModel }): JSX.Element {
             ))}
           </ul>
           {detail.villages.length === 0 ? <p className="empty">No village mappings yet.</p> : null}
-          <form className="grid" onSubmit={mapVillage}>
+          <form className="grid" onSubmit={mapVillage} data-testid="village-ward-form">
             <label>
               Village
-              <select required value={villageId} onChange={(e) => setVillageId(e.target.value)}>
+              <select id="village-ward-id" data-testid="village-ward-id" required value={villageId} onChange={(e) => setVillageId(e.target.value)}>
                 <option value="">Select…</option>
                 {villages.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -105,7 +107,7 @@ export function WardDetailPage({ model }: { model: AppModel }): JSX.Element {
                 <option value="partial">Partial</option>
               </select>
             </label>
-            <button className="btn" type="submit">
+            <button className="btn" id="village-ward-save" data-testid="village-ward-save" type="submit">
               Save mapping
             </button>
           </form>

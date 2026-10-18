@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Mandal, PagedResult, UrbanLocalBody, WardClassification, WardListItem } from "@shared/types";
+import type { GramPanchayat, Mandal, PagedResult, UrbanLocalBody, WardClassification, WardListItem } from "@shared/types";
 import type { AppModel } from "../App";
 
 export function WardsPage({ model }: { model: AppModel }): JSX.Element {
@@ -12,11 +12,13 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
   const [result, setResult] = useState<PagedResult<WardListItem> | null>(null);
   const [mandals, setMandals] = useState<Mandal[]>([]);
   const [ulbs, setUlbs] = useState<UrbanLocalBody[]>([]);
+  const [gps, setGps] = useState<GramPanchayat[]>([]);
   const [localBodyId, setLocalBodyId] = useState("");
 
   useEffect(() => {
     model.api.mandalList({ includeArchived: false }).then(setMandals).catch(() => undefined);
     model.api.ulbList({ includeArchived: false }).then(setUlbs).catch(() => undefined);
+    model.api.gpList({ includeArchived: false }).then(setGps).catch(() => undefined);
   }, [model.api]);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
       <div className="row">
         <div className="search">
           <input
+            data-testid="ward-search"
             placeholder="Search number, name or parent (Telugu supported)"
             value={query}
             onChange={(e) => {
@@ -50,6 +53,7 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
           />
         </div>
         <select
+          data-testid="ward-classification"
           value={classification}
           onChange={(e) => setClassification(e.target.value as WardClassification | "")}
         >
@@ -57,7 +61,7 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
           <option value="rural">Rural</option>
           <option value="urban">Urban</option>
         </select>
-        <select value={mandalId} onChange={(e) => setMandalId(e.target.value)}>
+        <select data-testid="ward-mandal" value={mandalId} onChange={(e) => setMandalId(e.target.value)}>
           <option value="">All mandals</option>
           {mandals.map((m) => (
             <option key={m.id} value={m.id}>
@@ -65,17 +69,22 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
             </option>
           ))}
         </select>
-        <select value={localBodyId} onChange={(e) => setLocalBodyId(e.target.value)}>
+        <select data-testid="ward-local-body" value={localBodyId} onChange={(e) => setLocalBodyId(e.target.value)}>
           <option value="">All local bodies</option>
+          {gps.map((gp) => (
+            <option key={gp.id} value={gp.id}>
+              {gp.name} (GP)
+            </option>
+          ))}
           {ulbs.map((u) => (
             <option key={u.id} value={u.id}>
-              {u.name}
+              {u.name} (ULB)
             </option>
           ))}
         </select>
       </div>
       <article className="card">
-        <table className="table">
+        <table className="table" data-testid="ward-table">
           <thead>
             <tr>
               <th>No.</th>
