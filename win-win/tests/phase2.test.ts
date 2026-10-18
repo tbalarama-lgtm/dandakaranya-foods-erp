@@ -19,7 +19,9 @@ import {
   createUlb,
   createVillage
 } from "../src/main/services/geo";
-import { createWard } from "../src/main/services/wards";
+import { loadDemoData } from "../src/main/services/demo";
+import { createWard, listWards } from "../src/main/services/wards";
+import { listVoters } from "../src/main/services/voters";
 import {
   archiveContact,
   archivePerson,
@@ -519,5 +521,37 @@ describe("Phase 2 migration, persistence and backup", () => {
     }>;
     expect(audit.some((row) => row.changed_fields.includes("phone"))).toBe(false);
     manager.close();
+  });
+});
+
+describe("Demonstration seed", () => {
+  it("loads labelled workspace, voters and does not store phone numbers", () => {
+    const db = openMemory();
+    loadDemoData(db);
+    const constituency = db.prepare("SELECT id FROM assembly_constituencies LIMIT 1").get() as { id: string };
+    const boundary = db.prepare("SELECT id FROM boundary_versions LIMIT 1").get() as { id: string };
+    const rural = listWards(db, {
+      constituencyId: constituency.id,
+      boundaryVersionId: boundary.id,
+      classification: "rural",
+      pageSize: 10
+    }).items.find((item) => item.wardNumber === "1")!;
+    const contacts = listContacts(db, { wardId: rural.id, constituencyId: constituency.id, pageSize: 10 });
+    expect(contacts.total).toBeGreaterThanOrEqual(2);
+    expect(contacts.items.every((item) => item.person.phone === "")).toBe(true);
+    expect(contacts.items.every((item) => item.organization.includes("[DEMO]"))).toBe(true);
+    const team = listAssignments(db, { wardId: rural.id, constituencyId: constituency.id, includeInactive: true });
+    expect(team.some((row) => row.status === "active")).toBe(true);
+    expect(team.some((row) => row.status === "inactive")).toBe(true);
+    const issues = listIssues(db, { wardId: rural.id, constituencyId: constituency.id, pageSize: 10 });
+    expect(issues.items.some((row) => row.status === "open")).toBe(true);
+    expect(issues.items.some((row) => row.status === "resolved")).toBe(true);
+    const tasks = listTasks(db, { wardId: rural.id, constituencyId: constituency.id, includeArchived: true, pageSize: 10 });
+    expect(tasks.items.some((row) => row.status === "open" && row.overdue)).toBe(true);
+    expect(tasks.items.some((row) => row.status === "done")).toBe(true);
+    expect(tasks.items.some((row) => row.status === "open" && !row.overdue)).toBe(true);
+    const voters = listVoters(db, { constituencyId: constituency.id, pageSize: 10 });
+    expect(voters.items.some((row) => row.sourceName.includes("రాము") && row.assignedWardId)).toBe(true);
+    expect(voters.items.some((row) => row.sourceName.includes("సీత") && !row.assignedWardId)).toBe(true);
   });
 });

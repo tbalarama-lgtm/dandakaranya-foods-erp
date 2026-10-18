@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { ScopeSelect } from "./ScopeSelect";
 import { t } from "@shared/i18n";
 import type {
   AppInfo,
@@ -39,6 +40,7 @@ export interface AppModel {
 export function App(): JSX.Element {
   const api = window.winwin;
   const navigate = useNavigate();
+  const location = useLocation();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [constituencies, setConstituencies] = useState<AssemblyConstituency[]>([]);
@@ -77,6 +79,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     refresh().catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, [refresh]);
+
+  useEffect(() => {
+    document.querySelector(".nav-link.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [location.pathname]);
 
   const locale = settings?.locale ?? "en";
   const model: AppModel = useMemo(
@@ -152,28 +158,22 @@ export function App(): JSX.Element {
       </aside>
       <main className="workspace">
         <div className="topbar">
-          <label>
-            {t(locale, "constituency")}
-            <select id="topbar-constituency" data-testid="topbar-constituency" value={constituencyId} onChange={(e) => setConstituencyId(e.target.value)}>
-              <option value="">Select…</option>
-              {constituencies.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} {item.nameTe ? `/ ${item.nameTe}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t(locale, "boundaryVersion")}
-            <select id="topbar-boundary" data-testid="topbar-boundary" value={boundaryVersionId} onChange={(e) => setBoundaryVersionId(e.target.value)}>
-              <option value="">Select…</option>
-              {boundaries.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ScopeSelect
+            id="topbar-constituency"
+            label={t(locale, "constituency")}
+            value={constituencyId}
+            emptyLabel="Select…"
+            options={constituencies}
+            onChange={setConstituencyId}
+          />
+          <ScopeSelect
+            id="topbar-boundary"
+            label={t(locale, "boundaryVersion")}
+            value={boundaryVersionId}
+            emptyLabel="Select…"
+            options={boundaries}
+            onChange={setBoundaryVersionId}
+          />
           <button className="btn secondary" type="button" onClick={() => navigate("/settings")}>
             New constituency
           </button>
