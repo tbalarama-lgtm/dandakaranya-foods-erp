@@ -9,10 +9,12 @@ import type {
   IssueStatus,
   IssueStatusHistory,
   Person,
+  RollEdition,
   TaskItem,
   TaskStatus,
   TeamAssignment,
   Village,
+  VoterListItem,
   WardContact,
   WardDetail,
   WardOverview
@@ -109,6 +111,9 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
         <NavLink className={({ isActive }) => `tab${isActive ? " active" : ""}`} to={`/wards/${id}/tasks`} data-testid="tab-tasks">
           Tasks
         </NavLink>
+        <NavLink className={({ isActive }) => `tab${isActive ? " active" : ""}`} to={`/wards/${id}/voters`} data-testid="tab-voters">
+          Voters
+        </NavLink>
       </nav>
       <Routes>
         <Route
@@ -132,6 +137,7 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
         <Route path="team" element={<TeamTab model={model} ctx={ctx} />} />
         <Route path="issues" element={<IssuesTab model={model} ctx={ctx} />} />
         <Route path="tasks" element={<TasksTab model={model} ctx={ctx} />} />
+        <Route path="voters" element={<WardVotersTab model={model} ctx={ctx} />} />
       </Routes>
     </section>
   );
@@ -1191,6 +1197,86 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
           {editing ? "Save task" : "Create task"}
         </button>
       </form>
+    </div>
+  );
+}
+
+function WardVotersTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; constituencyId: string } }): JSX.Element {
+  const [editions, setEditions] = useState<RollEdition[]>([]);
+  const [editionId, setEditionId] = useState("");
+  const [items, setItems] = useState<VoterListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    model.api
+      .editionList({ constituencyId: ctx.constituencyId })
+      .then((next) => {
+        setEditions(next);
+        setEditionId((current) => current || next[0]?.id || "");
+      })
+      .catch((err: unknown) => model.setError(err instanceof Error ? err.message : String(err)));
+  }, [ctx.constituencyId]);
+
+  useEffect(() => {
+    if (!editionId) {
+      setItems([]);
+      setTotal(0);
+      return;
+    }
+    model.api
+      .voterList({
+        constituencyId: ctx.constituencyId,
+        wardId: ctx.wardId,
+        rollEditionId: editionId,
+        query,
+        page: 1,
+        pageSize: 25
+      })
+      .then((page) => {
+        setItems(page.items);
+        setTotal(page.total);
+      })
+      .catch((err: unknown) => model.setError(err instanceof Error ? err.message : String(err)));
+  }, [ctx.constituencyId, ctx.wardId, editionId, query]);
+
+  return (
+    <div className="grid">
+      <p>Assigned electoral-roll entries for this ward in the selected edition only. Contact identities stay separate.</p>
+      <label>
+        Roll edition
+        <select data-testid="ward-voter-edition" value={editionId} onChange={(e) => setEditionId(e.target.value)}>
+          <option value="">Select edition</option>
+          {editions.map((edition) => (
+            <option key={edition.id} value={edition.id}>
+              {edition.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Search
+        <input data-testid="ward-voter-query" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </label>
+      <p data-testid="ward-voter-count">{editionId ? `${total} in this edition` : "Select an edition to see a count."}</p>
+      <table className="table" data-testid="ward-voter-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Identifier</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>{item.displayName}</td>
+              <td>{item.displayElectoralId}</td>
+              <td>{item.displayAddress}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

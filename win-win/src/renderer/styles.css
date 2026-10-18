@@ -151,6 +151,8 @@ textarea { border-radius: 16px; min-height: 90px; }
   align-items: center;
 }
 .history { font-size: 13px; color: var(--muted); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;

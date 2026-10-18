@@ -55,6 +55,9 @@ export function DashboardPage({ model }: { model: AppModel }): JSX.Element {
         <Link className="btn" to="/coverage">
           Map coverage
         </Link>
+        <Link className="btn secondary" to="/voters">
+          Electoral roll
+        </Link>
         <Link className="btn secondary" to="/rural">
           Rural areas
         </Link>

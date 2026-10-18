@@ -85,7 +85,29 @@ const api: WinWinApi = {
   taskList: (input) => invoke(IpcChannel.taskList, input),
   taskCreate: (input) => invoke(IpcChannel.taskCreate, input),
   taskUpdate: (input) => invoke(IpcChannel.taskUpdate, input),
-  wardOverview: (input) => invoke(IpcChannel.wardOverview, input)
+  wardOverview: (input) => invoke(IpcChannel.wardOverview, input),
+  editionList: (input) => invoke(IpcChannel.editionList, input),
+  editionCreate: (input) => invoke(IpcChannel.editionCreate, input),
+  editionArchive: (input) => invoke(IpcChannel.editionArchive, input),
+  editionCounts: (input) => invoke(IpcChannel.editionCounts, input),
+  voterList: (input) => invoke(IpcChannel.voterList, input),
+  voterGet: (input) => invoke(IpcChannel.voterGet, input),
+  voterCreate: (input) => invoke(IpcChannel.voterCreate, input),
+  voterUpdate: (input) => invoke(IpcChannel.voterUpdate, input),
+  voterArchive: (input) => invoke(IpcChannel.voterArchive, input),
+  voterAssignBulk: (input) => invoke(IpcChannel.voterAssignBulk, input),
+  voterExport: (input) => invoke(IpcChannel.voterExport, input),
+  importOpen: (input) => invoke(IpcChannel.importOpen, input),
+  importSetEdition: (input) => invoke(IpcChannel.importSetEdition, input),
+  importSetMapping: (input) => invoke(IpcChannel.importSetMapping, input),
+  importValidate: (input) => invoke(IpcChannel.importValidate, input),
+  importAssignStaged: (input) => invoke(IpcChannel.importAssignStaged, input),
+  importCommit: (input) => invoke(IpcChannel.importCommit, input),
+  importCancel: (input) => invoke(IpcChannel.importCancel, input),
+  importTemplate: (input) => invoke(IpcChannel.importTemplate, input),
+  importErrorReport: (input) => invoke(IpcChannel.importErrorReport, input),
+  duplicateList: (input) => invoke(IpcChannel.duplicateList, input),
+  duplicateReview: (input) => invoke(IpcChannel.duplicateReview, input)
 };
 
 contextBridge.exposeInMainWorld("winwin", api);

@@ -18,7 +18,7 @@
 
 - SQLite in `app.getPath('userData')/win-win-data/win-win.sqlite`
 - Foreign keys on every connection
-- Versioned migrations in `src/main/db/schema.ts` (currently schema 3; Phase 1 uses v1 geography/elections plus unused later tables that do not affect the UI)
+- Versioned migrations in `src/main/db/schema.ts` (currently schema 5). Geography, workspace, and electoral-roll tables coexist; opening an older database applies forward migrations only.
 - Portable backup container `WWINBAK1` + manifest + SQLite bytes (`.winwinbak`)
 - **Not encrypted**
 
@@ -31,3 +31,5 @@ Wards belong to a boundary version. Unique ward numbers are scoped to parent loc
 Elections pin a boundary version and store name snapshots; archived workspaces cannot be edited.
 
 Phase 2 ward workspace stores people separately from ward contact links, team assignments, issues (with status history) and tasks. Writes require the ward to be in the selected constituency coverage. Audit logs field names only.
+
+Phase 3 stores authorized electoral-roll entries separately from person/contact identities. Imports are local CSV/XLSX (20 MB / 50,000 rows). Formula cells are rejected. Ward assignment is explicit. Duplicate flags never merge records. Counts are per roll edition.

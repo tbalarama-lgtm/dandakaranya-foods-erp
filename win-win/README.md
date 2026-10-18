@@ -138,4 +138,15 @@ The database starts empty. Settings can load labelled `[DEMO]` records only into
 
 Each rural and urban ward opens a workspace: **Overview | Contacts | Team | Issues | Tasks**. Contacts separate person identity from ward associations. Phone and email require recorded consent. Team assignment history is kept. Issues have dated status history. Tasks calculate overdue dates with the local calendar.
 
-Voter rolls, CSV/XLSX import, messaging and documents are not in this build.
+## Phase 3 electoral roll
+
+Voters and Import screens store authorized roll editions, CSV/XLSX batches, electoral-roll entries, and ward assignment history. Person/contact records stay separate and are never linked by name or phone.
+
+Import limits: 20 MB file size and 50,000 data rows. Identifiers stay text (including leading zeros). Formula cells are not executed. PDF/OCR, messaging and documents are later phases.
+
+Isolated voter UI profile:
+
+```bat
+npm run build
+npm run test:ui-voters
+```
