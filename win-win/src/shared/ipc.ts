@@ -80,9 +80,12 @@ export const IpcChannel = {
   voterAssignBulk: "winwin:voterAssignBulk",
   voterExport: "winwin:voterExport",
   importOpen: "winwin:importOpen",
+  importSelectSheet: "winwin:importSelectSheet",
   importSetEdition: "winwin:importSetEdition",
   importSetMapping: "winwin:importSetMapping",
   importValidate: "winwin:importValidate",
+  importListStaged: "winwin:importListStaged",
+  importReviewIdentifiers: "winwin:importReviewIdentifiers",
   importAssignStaged: "winwin:importAssignStaged",
   importCommit: "winwin:importCommit",
   importCancel: "winwin:importCancel",
@@ -299,12 +302,33 @@ export interface WinWinApi {
     | { cancelled: true }
     | (import("./types").ImportPreview & { cancelled?: false })
   >;
+  importSelectSheet: (input: { sessionId: string; sheetName: string }) => Promise<import("./types").ImportPreview>;
   importSetEdition: (input: { sessionId: string; rollEditionId: string }) => Promise<import("./types").ImportPreview>;
   importSetMapping: (input: {
     sessionId: string;
     mapping: import("./types").ImportColumnMapping;
   }) => Promise<import("./types").ImportColumnMapping>;
   importValidate: (input: { sessionId: string }) => Promise<import("./types").ImportValidateResult>;
+  importListStaged: (input: {
+    sessionId: string;
+    kind?: "review" | "identifier" | "rejected" | "unassigned" | "all";
+    page?: number;
+    pageSize?: number;
+  }) => Promise<{
+    items: import("./types").StagedImportRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>;
+  importReviewIdentifiers: (input: {
+    sessionId: string;
+    items: Array<{
+      sourceRowNumber: number;
+      field: "electoralId" | "rollSerial" | "wardNumber";
+      action: "accept-raw" | "correct";
+      value?: string;
+    }>;
+  }) => Promise<import("./types").ImportValidateResult>;
   importAssignStaged: (input: {
     sessionId: string;
     sourceRowNumbers: number[];
@@ -316,10 +340,16 @@ export interface WinWinApi {
   }) => Promise<import("./types").ImportCommitResult>;
   importCancel: (input: { sessionId: string }) => Promise<void>;
   importTemplate: (input: { format: "csv" | "xlsx" }) => Promise<{ cancelled: boolean; path?: string }>;
-  importErrorReport: (input: { issues: import("./types").ImportValidationIssue[] }) => Promise<{
+  importErrorReport: (input: {
+    sessionId?: string;
+    issues?: import("./types").ImportValidationIssue[];
+  }) => Promise<{
     cancelled: boolean;
     path?: string;
   }>;
+  onImportProgress: (
+    handler: (progress: { phase: string; processed: number; total: number; message: string }) => void
+  ) => () => void;
   duplicateList: (input: {
     constituencyId: string;
     rollEditionId: string;

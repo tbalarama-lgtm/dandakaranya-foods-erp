@@ -268,7 +268,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
             <span>This edition</span>
             <b>{shownCounts.total}</b>
           </article>
-          <article className="card stat">
+          <article className="card stat" data-testid="voter-count-assigned">
             <span>Assigned</span>
             <b>{shownCounts.assigned}</b>
           </article>
@@ -276,11 +276,20 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
             <span>Unassigned</span>
             <b>{shownCounts.unassigned}</b>
           </article>
+          <article className="card stat" data-testid="voter-count-archived">
+            <span>Archived</span>
+            <b>{shownCounts.archived}</b>
+          </article>
           <article className="card stat">
             <span>Needs review</span>
             <b>{shownCounts.needsReview}</b>
           </article>
         </div>
+      ) : null}
+      {editionId ? (
+        <p className="history" data-testid="voter-count-reconcile">
+          Assigned {shownCounts.assigned} + unassigned {shownCounts.unassigned} + archived {shownCounts.archived} = {shownCounts.assigned + shownCounts.unassigned + shownCounts.archived} (edition total {shownCounts.total})
+        </p>
       ) : (
         <p className="empty">Create or select a roll edition to see counts for that edition only.</p>
       )}

@@ -27,7 +27,7 @@ export function parseCsv(text: string): string[][] {
     } else if (ch === "\n") {
       row.push(field);
       field = "";
-      if (row.some((cell) => cell.length > 0) || row.length > 1) rows.push(row);
+      rows.push(row);
       row = [];
     } else if (ch === "\r") {
       /* skip; handle CRLF via \n */
@@ -37,7 +37,10 @@ export function parseCsv(text: string): string[][] {
   }
   row.push(field);
   if (row.some((cell) => cell.length > 0) || rows.length === 0) rows.push(row);
-  return rows.filter((r) => r.some((c) => c.trim().length > 0) || r.length > 1);
+  while (rows.length > 1 && rows[rows.length - 1]!.every((cell) => !cell.trim())) {
+    rows.pop();
+  }
+  return rows;
 }
 
 export function stringifyCsv(rows: string[][]): string {

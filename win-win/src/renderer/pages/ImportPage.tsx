@@ -1,13 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { ImportColumnMapping, ImportCommitResult, ImportPreview, ImportValidateResult, RollEdition, StagedImportRow, WardListItem } from "@shared/types";
+import type {
+  ImportColumnMapping,
+  ImportCommitResult,
+  ImportPreview,
+  ImportValidateResult,
+  RollEdition,
+  StagedImportRow,
+  WardListItem
+} from "@shared/types";
 import type { AppModel } from "../App";
 
-const STEPS = ["File", "Edition", "Map", "Preview", "Validate", "Wards", "Confirm"];
+const STEPS = ["File", "Sheet", "Edition", "Map", "Preview", "Validate", "Confirm"];
 const MAP_FIELDS: Array<{ key: keyof ImportColumnMapping; label: string; requiredHint: string }> = [
   { key: "nameOriginal", label: "Name (original script)", requiredHint: "Needed if identifier is blank" },
   { key: "nameEnglish", label: "English name", requiredHint: "Optional" },
-  { key: "electoralId", label: "Electoral identifier", requiredHint: "Needed if name is blank; keep leading zeros" },
+  { key: "electoralId", label: "Electoral identifier", requiredHint: "Text only; numeric Excel cells need review" },
   { key: "rollSerial", label: "Roll serial", requiredHint: "Optional; not a unique id" },
   { key: "publishedAge", label: "Published age", requiredHint: "Optional; not converted to a birth date" },
   { key: "ageReferenceDate", label: "Age reference date", requiredHint: "Optional" },
@@ -24,20 +32,40 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
   const [editions, setEditions] = useState<RollEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [editionName, setEditionName] = useState("");
+  const [sheetName, setSheetName] = useState("");
   const [mapping, setMappingState] = useState<ImportColumnMapping>({});
   const [validated, setValidated] = useState<ImportValidateResult | null>(null);
+  const [reviewRows, setReviewRows] = useState<StagedImportRow[]>([]);
+  const [identifierRows, setIdentifierRows] = useState<StagedImportRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [wardId, setWardId] = useState("");
   const [wards, setWards] = useState<WardListItem[]>([]);
   const [result, setResult] = useState<ImportCommitResult | null>(null);
   const [acknowledgeRepeat, setAcknowledgeRepeat] = useState(false);
+  const [correction, setCorrection] = useState("");
 
   const sessionId = preview?.sessionId;
+
+  useEffect(() => {
+    return model.api.onImportProgress((next) => {
+      setProgress(`${next.message} ${next.processed}/${next.total}`);
+    });
+  }, [model.api]);
 
   async function loadEditions(): Promise<RollEdition[]> {
     const next = await model.api.editionList({ constituencyId: model.constituencyId, includeArchived: false });
     setEditions(next);
     return next;
+  }
+
+  async function loadReview(id: string, summary: ImportValidateResult): Promise<void> {
+    setValidated(summary);
+    const [review, identifiers] = await Promise.all([
+      model.api.importListStaged({ sessionId: id, kind: "review", page: 1, pageSize: 50 }),
+      model.api.importListStaged({ sessionId: id, kind: "identifier", page: 1, pageSize: 50 })
+    ]);
+    setReviewRows(review.items);
+    setIdentifierRows(identifiers.items);
   }
 
   async function chooseFile(): Promise<void> {
@@ -56,6 +84,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
       setMappingState(opened.suggestedMapping);
       setValidated(null);
       setResult(null);
+      setSheetName(opened.selectedSheet ?? "");
       await loadEditions();
       if (model.boundaryVersionId) {
         const page = await model.api.wardList({
@@ -66,7 +95,22 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
         });
         setWards(page.items);
       }
-      setStep(1);
+      setStep(opened.needsSheetSelection ? 1 : 2);
+    } catch (err) {
+      model.setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProgress("");
+    }
+  }
+
+  async function applySheet(): Promise<void> {
+    if (!sessionId || !sheetName) return;
+    setProgress("Reading selected worksheet…");
+    try {
+      const next = await model.api.importSelectSheet({ sessionId, sheetName });
+      setPreview(next);
+      setMappingState(next.suggestedMapping);
+      setStep(2);
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -80,7 +124,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
     try {
       const next = await model.api.importSetEdition({ sessionId, rollEditionId: editionId });
       setPreview(next);
-      setStep(2);
+      setStep(3);
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -90,8 +134,9 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
 
   async function applyMapping(): Promise<void> {
     if (!sessionId) return;
-    await model.api.importSetMapping({ sessionId, mapping });
-    setStep(3);
+    const next = await model.api.importSetMapping({ sessionId, mapping });
+    setMappingState(next);
+    setStep(4);
   }
 
   async function runValidate(): Promise<void> {
@@ -99,7 +144,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
     setProgress(`Validating ${preview?.rowCount ?? 0} rows…`);
     try {
       const next = await model.api.importValidate({ sessionId });
-      setValidated(next);
+      await loadReview(sessionId, next);
       setStep(5);
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
@@ -115,7 +160,24 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
       sourceRowNumbers: selectedRows,
       wardId: keepUnassigned ? null : wardId || null
     });
-    setValidated(next);
+    await loadReview(sessionId, next);
+    setSelectedRows([]);
+  }
+
+  async function reviewSelected(action: "accept-raw" | "correct"): Promise<void> {
+    if (!sessionId || identifierRows.length === 0) return;
+    const targets = identifierRows.filter((row) => selectedRows.includes(row.sourceRowNumber));
+    const rows = (targets.length ? targets : identifierRows).flatMap((row) =>
+      Object.keys(row.cellMeta).map((field) => ({
+        sourceRowNumber: row.sourceRowNumber,
+        field: field as "electoralId" | "rollSerial" | "wardNumber",
+        action,
+        value: action === "correct" ? correction : undefined
+      }))
+    );
+    const next = await model.api.importReviewIdentifiers({ sessionId, items: rows });
+    await loadReview(sessionId, next);
+    setCorrection("");
     setSelectedRows([]);
   }
 
@@ -139,12 +201,8 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
     setValidated(null);
     setResult(null);
     setStep(0);
+    setProgress("");
   }
-
-  const reviewRows: StagedImportRow[] = useMemo(
-    () => (validated?.rows ?? []).filter((row) => row.wardMatch !== "assigned" || row.errors.length > 0),
-    [validated]
-  );
 
   if (!model.constituencyId) {
     return (
@@ -158,7 +216,10 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
   return (
     <section className="grid">
       <h1>Import electoral roll</h1>
-      <p>CSV/XLSX only, processed on this computer. PDF/OCR, macros and network lookups are not used. Limit: 20 MB and 50,000 data rows.</p>
+      <p>
+        CSV/XLSX only, processed on this computer. Numeric Excel identifiers are not treated as original text. Limit: 20 MB
+        and 50,000 data rows.
+      </p>
       <div className="steps" data-testid="import-steps">
         {STEPS.map((label, index) => (
           <span key={label} className={`chip${index === Math.min(step, 6) ? "" : " muted"}`}>
@@ -166,7 +227,11 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
           </span>
         ))}
       </div>
-      {progress ? <p className="banner" data-testid="import-progress">{progress}</p> : null}
+      {progress ? (
+        <p className="banner" data-testid="import-progress">
+          {progress}
+        </p>
+      ) : null}
       {step === 0 || !preview ? (
         <article className="card grid">
           <button className="btn" type="button" data-testid="import-choose" onClick={() => void chooseFile()}>
@@ -185,16 +250,51 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
       {preview && step >= 1 && step < 7 ? (
         <article className="card grid">
           <p>
-            File <strong data-testid="import-filename">{preview.fileName}</strong> · {preview.rowCount} data rows
+            File <strong data-testid="import-filename">{preview.fileName}</strong>
+            {preview.selectedSheet ? ` · sheet ${preview.selectedSheet}` : ""} · {preview.rowCount} data rows
             {preview.formulaCellCount ? ` · ${preview.formulaCellCount} formula cells` : ""}
-            {preview.numericCoercionCount ? ` · ${preview.numericCoercionCount} numeric cells (leading zeros may be lost)` : ""}
+            {preview.numericCoercionCount ? ` · ${preview.numericCoercionCount} numeric cells` : ""}
           </p>
+          {preview.headerWarnings.map((warning) => (
+            <p className="error" key={warning}>
+              {warning}
+            </p>
+          ))}
           {preview.repeatedImport ? (
             <p className="error" data-testid="import-repeat">
               This file fingerprint was already committed to the selected roll edition.
             </p>
           ) : null}
+          {preview.repeatedInOtherEditions ? (
+            <p className="banner" data-testid="import-repeat-other">
+              This file was imported into another roll edition. That is a revision, not an automatic duplicate of this edition.
+            </p>
+          ) : null}
           {step === 1 ? (
+            <>
+              <label>
+                Worksheet
+                <select id="import-sheet" data-testid="import-sheet" value={sheetName} onChange={(e) => setSheetName(e.target.value)}>
+                  <option value="">Select…</option>
+                  {preview.worksheets.map((sheet) => (
+                    <option key={sheet.name} value={sheet.name}>
+                      {sheet.name}
+                      {sheet.hidden ? " (hidden)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="row">
+                <button className="btn" type="button" data-testid="import-sheet-next" disabled={!sheetName} onClick={() => void applySheet()}>
+                  Read worksheet
+                </button>
+                <button className="btn secondary" type="button" data-testid="import-cancel" onClick={() => void cancel()}>
+                  Cancel import
+                </button>
+              </div>
+            </>
+          ) : null}
+          {step === 2 ? (
             <>
               <label>
                 Roll edition
@@ -227,8 +327,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                       name: editionName
                     });
                     setEditionName("");
-                    const list = await loadEditions();
-                    setEditionId(created.id || list[0]?.id || "");
+                    await loadEditions();
                     setEditionId(created.id);
                   }}
                 >
@@ -239,13 +338,13 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                 <button className="btn" type="button" data-testid="import-edition-next" disabled={!editionId} onClick={() => void applyEdition()}>
                   Continue
                 </button>
-                <button className="btn secondary" type="button" onClick={() => void cancel()}>
+                <button className="btn secondary" type="button" data-testid="import-cancel" onClick={() => void cancel()}>
                   Cancel import
                 </button>
               </div>
             </>
           ) : null}
-          {step === 2 ? (
+          {step === 3 ? (
             <>
               {MAP_FIELDS.map((field) => (
                 <label key={field.key}>
@@ -270,7 +369,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
               </button>
             </>
           ) : null}
-          {step === 3 ? (
+          {step === 4 ? (
             <>
               <table className="table" data-testid="import-preview-table">
                 <thead>
@@ -281,13 +380,28 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.previewRows.map((row, i) => (
-                    <tr key={i}>
-                      {preview.columns.map((_, j) => (
-                        <td key={j}>{row[j]}</td>
-                      ))}
-                    </tr>
-                  ))}
+                  {(preview.previewCells.length ? preview.previewCells : preview.previewRows.map((row) => row.map((text) => ({ text })))).map(
+                    (row, i) => (
+                      <tr key={i}>
+                        {preview.columns.map((_, j) => {
+                          const cell = row[j] as
+                            | { text?: string; type?: string; raw?: string; displayed?: string; originalTextEstablished?: boolean }
+                            | undefined;
+                          return (
+                            <td key={j} data-cell-type={cell?.type ?? "text"}>
+                              <div>{cell?.text ?? ""}</div>
+                              {cell?.type && cell.type !== "text" && cell.type !== "empty" ? (
+                                <div className="history">
+                                  type {cell.type}; raw {cell.raw}; displayed {cell.displayed}
+                                  {cell.originalTextEstablished === false ? "; original text not established" : ""}
+                                </div>
+                              ) : null}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
               <button className="btn" type="button" data-testid="import-preview-next" onClick={() => void runValidate()}>
@@ -298,20 +412,83 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
           {step >= 5 && validated && step < 7 ? (
             <>
               <p data-testid="import-validate-summary">
-                {validated.errorCount} issues · {validated.assignedCount} mapped · {validated.unassignedCount} unassigned ·{" "}
-                {validated.ambiguousCount} ambiguous/invalid
+                Eligible {validated.eligibleCount} · unassigned {validated.unassignedCount} · rejected {validated.rejectedCount} ·
+                identifier review {validated.identifierReviewCount} · empty skipped {validated.emptySkipped} · mapped{" "}
+                {validated.assignedCount} · issues {validated.errorCount}
               </p>
-              {validated.issues.length > 0 ? (
-                <div className="row">
-                  <button
-                    className="btn secondary"
-                    type="button"
-                    data-testid="import-error-report"
-                    onClick={() => void model.api.importErrorReport({ issues: validated.issues })}
-                  >
-                    Export error report
-                  </button>
-                </div>
+              <div className="row">
+                <button
+                  className="btn secondary"
+                  type="button"
+                  data-testid="import-error-report"
+                  onClick={() => void model.api.importErrorReport({ sessionId })}
+                >
+                  Export error report
+                </button>
+              </div>
+              {identifierRows.length > 0 ? (
+                <article className="card grid" data-testid="identifier-review">
+                  <h3>Numeric identifier review</h3>
+                  <p>WIN WIN will not invent missing zeros. Accept the raw stored number or type the exact source text.</p>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>Row</th>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Raw</th>
+                        <th>Displayed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {identifierRows.map((row) =>
+                        Object.entries(row.cellMeta).map(([field, meta]) => (
+                          <tr key={`${row.sourceRowNumber}-${field}`}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedRows.includes(row.sourceRowNumber)}
+                                onChange={(e) =>
+                                  setSelectedRows((current) =>
+                                    e.target.checked
+                                      ? [...current, row.sourceRowNumber]
+                                      : current.filter((n) => n !== row.sourceRowNumber)
+                                  )
+                                }
+                              />
+                            </td>
+                            <td>{row.sourceRowNumber}</td>
+                            <td>{field}</td>
+                            <td>{meta.type}</td>
+                            <td>{meta.raw}</td>
+                            <td>{meta.displayed}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="row">
+                    <input
+                      data-testid="identifier-correction"
+                      placeholder="Exact source text"
+                      value={correction}
+                      onChange={(e) => setCorrection(e.target.value)}
+                    />
+                    <button className="btn" type="button" data-testid="identifier-accept-raw" onClick={() => void reviewSelected("accept-raw")}>
+                      Accept raw values
+                    </button>
+                    <button
+                      className="btn secondary"
+                      type="button"
+                      data-testid="identifier-correct"
+                      disabled={!correction.trim()}
+                      onClick={() => void reviewSelected("correct")}
+                    >
+                      Save correction
+                    </button>
+                  </div>
+                </article>
               ) : null}
               <table className="table" data-testid="import-review-table">
                 <thead>
@@ -372,7 +549,13 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                 </label>
               ) : null}
               <div className="row">
-                <button className="btn" type="button" data-testid="import-commit" onClick={() => void commit()}>
+                <button
+                  className="btn"
+                  type="button"
+                  data-testid="import-commit"
+                  disabled={validated.identifierReviewCount > 0}
+                  onClick={() => void commit()}
+                >
                   Confirm import
                 </button>
                 <button className="btn danger" type="button" data-testid="import-cancel" onClick={() => void cancel()}>
@@ -386,8 +569,8 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
       {result ? (
         <article className="card grid" data-testid="import-summary">
           <h2>Import complete</h2>
-          <p>
-            Saved {result.imported} rows from this file. Unassigned: {result.unassigned}. Duplicate flags in this edition:{" "}
+          <p data-testid="import-summary-counts">
+            Imported {result.imported}. Unassigned {result.unassigned}. Rejected {result.rejected}. Duplicate flags{" "}
             {result.flaggedDuplicates}.
           </p>
           <Link className="btn" to="/voters">

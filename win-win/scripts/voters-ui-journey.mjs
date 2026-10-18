@@ -275,7 +275,7 @@ async function drive(cdp) {
   await click(cdp, "[data-testid='import-commit']");
   await waitFor(cdp, `Boolean(document.querySelector("[data-testid='import-summary']"))`);
   const imported = await cdp.evaluate(`document.querySelector("[data-testid='import-summary']")?.innerText ?? ""`);
-  if (!imported.includes("Saved 3")) throw new Error(`Import summary: ${imported}`);
+  if (!imported.includes("Imported 3") && !imported.includes("Saved 3")) throw new Error(`Import summary: ${imported}`);
   log("commit", imported.replaceAll("\n", " "));
   await screenshot(cdp, "win-win-voters-import.png");
 

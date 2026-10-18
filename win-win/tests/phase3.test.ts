@@ -173,7 +173,7 @@ describe("Phase 3 electoral roll", () => {
       publishedAddress: "published_address",
       wardNumber: "ward_number"
     });
-    const validated = validateSession(db, preview.sessionId);
+    const validated = await validateSession(db, preview.sessionId);
     expect(validated.errorCount).toBe(0);
     expect(validated.assignedCount).toBe(1);
     const committed = commitImport(db, preview.sessionId);
@@ -217,9 +217,9 @@ describe("Phase 3 electoral roll", () => {
     });
     setEdition(db, preview.sessionId, edition.id);
     setMapping(preview.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id" });
-    const validated = validateSession(db, preview.sessionId);
+    const validated = await validateSession(db, preview.sessionId);
     expect(validated.issues.some((issue) => issue.message.includes("formula"))).toBe(true);
-    expect(() => commitImport(db, preview.sessionId)).toThrow(/Resolve row-level/);
+    expect(() => commitImport(db, preview.sessionId)).toThrow(/identifier review|Resolve row-level/);
     expect(listVoters(db, { constituencyId: geo.constituency.id, rollEditionId: edition.id }).total).toBe(0);
   });
 
@@ -252,7 +252,7 @@ describe("Phase 3 electoral roll", () => {
       publishedAddress: "published_address",
       wardNumber: "ward_number"
     });
-    const validated = validateSession(db, preview.sessionId);
+    const validated = await validateSession(db, preview.sessionId);
     expect(validated.issues.some((issue) => issue.message.includes("name or an electoral identifier"))).toBe(true);
     expect(validated.issues.some((issue) => issue.message.includes("not in the selected constituency coverage"))).toBe(true);
     const lakshmi = validated.rows.find((row) => row.values.nameOriginal === "లక్ష్మి");
@@ -283,19 +283,19 @@ describe("Phase 3 electoral roll", () => {
     const session1 = createSession(db, { constituencyId: geo.constituency.id, ...table, fileName: "once.csv", sha });
     setEdition(db, session1.sessionId, first.id);
     setMapping(session1.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id" });
-    validateSession(db, session1.sessionId);
+    await validateSession(db, session1.sessionId);
     commitImport(db, session1.sessionId);
     const session2 = createSession(db, { constituencyId: geo.constituency.id, ...table, fileName: "once.csv", sha });
     const previewRepeat = setEdition(db, session2.sessionId, first.id);
     expect(previewRepeat.repeatedImport).toBe(true);
     setMapping(session2.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id" });
-    validateSession(db, session2.sessionId);
+    await validateSession(db, session2.sessionId);
     expect(() => commitImport(db, session2.sessionId, false)).toThrow(/already imported/);
     const session3 = createSession(db, { constituencyId: geo.constituency.id, ...table, fileName: "once.csv", sha });
     const otherEdition = setEdition(db, session3.sessionId, second.id);
     expect(otherEdition.repeatedImport).toBe(false);
     setMapping(session3.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id" });
-    validateSession(db, session3.sessionId);
+    await validateSession(db, session3.sessionId);
     commitImport(db, session3.sessionId);
     expect(editionCounts(db, geo.constituency.id, first.id).total).toBe(1);
     expect(editionCounts(db, geo.constituency.id, second.id).total).toBe(1);
@@ -335,7 +335,7 @@ describe("Phase 3 electoral roll", () => {
     expect(() => setEdition(db, session.sessionId, otherEdition.id)).toThrow(/constituency/);
     setEdition(db, session.sessionId, edition.id);
     setMapping(session.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id", wardNumber: "ward_number" });
-    validateSession(db, session.sessionId);
+    await validateSession(db, session.sessionId);
     getSession(session.sessionId).staged[0]!.assignedWardId = "missing-ward";
     expect(() => commitImport(db, session.sessionId)).toThrow();
     expect(listVoters(db, { constituencyId: geo.constituency.id, rollEditionId: edition.id }).total).toBe(0);
@@ -360,7 +360,7 @@ describe("Phase 3 electoral roll", () => {
     });
     setEdition(db, session.sessionId, edition.id);
     setMapping(session.sessionId, { nameOriginal: "name_original" });
-    validateSession(db, session.sessionId);
+    await validateSession(db, session.sessionId);
     cancelImport(session.sessionId);
     expect(() => commitImport(db, session.sessionId)).toThrow(/no longer available/);
     expect(listVoters(db, { constituencyId: geo.constituency.id, rollEditionId: edition.id }).total).toBe(0);
@@ -538,7 +538,7 @@ describe("Phase 3 electoral roll", () => {
     });
     setEdition(db, session.sessionId, edition.id);
     setMapping(session.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id", wardNumber: "ward_number" });
-    const validated = validateSession(db, session.sessionId);
+    const validated = await validateSession(db, session.sessionId);
     expect(validated.ambiguousCount).toBe(1);
     const next = assignStagedWards(db, session.sessionId, [validated.rows[0]!.sourceRowNumber], geo.rural2.id);
     expect(next.assignedCount).toBe(1);

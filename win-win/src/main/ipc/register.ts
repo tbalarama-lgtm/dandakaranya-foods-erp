@@ -96,7 +96,12 @@ import {
   commitImport,
   createSession,
   errorReportCsv,
+  errorReportFromSession,
+  inspectSpreadsheet,
+  listStaged,
   readTabularFile,
+  reviewIdentifiers,
+  selectSheet,
   setEdition,
   setMapping,
   sha256File,
@@ -746,6 +751,10 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     }
   );
 
+  const reportImportProgress = (progress: { phase: "read" | "validate" | "commit"; processed: number; total: number; message: string }) => {
+    getWindow()?.webContents.send("winwin:import-progress", progress);
+  };
+
   handle(IpcChannel.importOpen, z.object({ constituencyId: z.string().min(1) }), async (input) => {
     const constituencyId = (input as { constituencyId: string }).constituencyId;
     const automated = !app.isPackaged ? process.env.WINWIN_TEST_IMPORT_FILE : undefined;
@@ -760,19 +769,50 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       filePath = result.canceled ? null : result.filePaths[0] ?? null;
     }
     if (!filePath) return { cancelled: true as const };
-    const table = await readTabularFile(filePath);
+    const inspected = await inspectSpreadsheet(filePath);
     const sha = sha256File(filePath);
+    if (inspected.worksheets.length > 1) {
+      return createSession(db(), {
+        constituencyId,
+        columns: [],
+        rows: [],
+        cells: [],
+        fileName: path.basename(filePath),
+        sha,
+        filePath,
+        worksheets: inspected.worksheets,
+        selectedSheet: null,
+        headerWarnings: []
+      });
+    }
+    const table = await readTabularFile(filePath, {
+      sheetName: inspected.worksheets[0]?.name,
+      onProgress: reportImportProgress
+    });
     return createSession(db(), {
       constituencyId,
       columns: table.columns,
       rows: table.rows,
+      cells: table.cells,
       fileName: path.basename(filePath),
       sha,
+      filePath,
       formulaMask: table.formulaMask,
       formulaCellCount: table.formulaCellCount,
-      numericCoercionCount: table.numericCoercionCount
+      numericCoercionCount: table.numericCoercionCount,
+      headerWarnings: table.headerWarnings,
+      worksheets: table.worksheets,
+      selectedSheet: table.selectedSheet
     });
   });
+  handle(
+    IpcChannel.importSelectSheet,
+    z.object({ sessionId: z.string().min(1), sheetName: z.string().min(1) }),
+    (input) => {
+      const { sessionId, sheetName } = input as { sessionId: string; sheetName: string };
+      return selectSheet(db(), sessionId, sheetName, reportImportProgress);
+    }
+  );
   handle(
     IpcChannel.importSetEdition,
     z.object({ sessionId: z.string().min(1), rollEditionId: z.string().min(1) }),
@@ -790,7 +830,45 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     }
   );
   handle(IpcChannel.importValidate, z.object({ sessionId: z.string().min(1) }), (input) =>
-    validateSession(db(), (input as { sessionId: string }).sessionId)
+    validateSession(db(), (input as { sessionId: string }).sessionId, reportImportProgress)
+  );
+  handle(
+    IpcChannel.importListStaged,
+    z.object({
+      sessionId: z.string().min(1),
+      kind: z.enum(["review", "identifier", "rejected", "unassigned", "all"]).optional(),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(200).optional()
+    }),
+    (input) => listStaged((input as { sessionId: string }).sessionId, input as Parameters<typeof listStaged>[1])
+  );
+  handle(
+    IpcChannel.importReviewIdentifiers,
+    z.object({
+      sessionId: z.string().min(1),
+      items: z
+        .array(
+          z.object({
+            sourceRowNumber: z.number().int().positive(),
+            field: z.enum(["electoralId", "rollSerial", "wardNumber"]),
+            action: z.enum(["accept-raw", "correct"]),
+            value: z.string().optional()
+          })
+        )
+        .min(1)
+    }),
+    (input) => {
+      const { sessionId, items } = input as {
+        sessionId: string;
+        items: Array<{
+          sourceRowNumber: number;
+          field: "electoralId" | "rollSerial" | "wardNumber";
+          action: "accept-raw" | "correct";
+          value?: string;
+        }>;
+      };
+      return reviewIdentifiers(db(), sessionId, items);
+    }
   );
   handle(
     IpcChannel.importAssignStaged,
@@ -813,7 +891,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     z.object({ sessionId: z.string().min(1), acknowledgeRepeat: z.boolean().optional() }),
     (input) => {
       const { sessionId, acknowledgeRepeat } = input as { sessionId: string; acknowledgeRepeat?: boolean };
-      return commitImport(db(), sessionId, Boolean(acknowledgeRepeat));
+      return commitImport(db(), sessionId, Boolean(acknowledgeRepeat), reportImportProgress);
     }
   );
   handle(IpcChannel.importCancel, z.object({ sessionId: z.string().min(1) }), (input) => {
@@ -834,13 +912,32 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
   handle(
     IpcChannel.importErrorReport,
     z.object({
-      issues: z.array(z.object({ sourceRowNumber: z.number(), field: z.string(), message: z.string() }))
+      sessionId: z.string().min(1).optional(),
+      issues: z.array(z.object({ sourceRowNumber: z.number(), field: z.string(), message: z.string() })).optional()
     }),
     async (input) => {
-      const issues = (input as { issues: Array<{ sourceRowNumber: number; field: string; message: string }> }).issues;
+      const { sessionId, issues } = input as {
+        sessionId?: string;
+        issues?: Array<{ sourceRowNumber: number; field: string; message: string }>;
+      };
       const dest = await savePath("errors", "import-errors.csv", [{ name: "CSV", extensions: ["csv"] }]);
       if (!dest) return { cancelled: true };
-      fs.writeFileSync(dest, errorReportCsv({ rows: [], errorCount: issues.length, unassignedCount: 0, ambiguousCount: 0, assignedCount: 0, issues }), "utf8");
+      const csv = sessionId
+        ? errorReportFromSession(sessionId)
+        : errorReportCsv({
+            rows: [],
+            rowsTruncated: false,
+            errorCount: issues?.length ?? 0,
+            unassignedCount: 0,
+            ambiguousCount: 0,
+            assignedCount: 0,
+            rejectedCount: 0,
+            identifierReviewCount: 0,
+            emptySkipped: 0,
+            eligibleCount: 0,
+            issues: issues ?? []
+          });
+      fs.writeFileSync(dest, csv, "utf8");
       return { cancelled: false, path: dest };
     }
   );

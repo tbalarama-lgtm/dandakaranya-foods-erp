@@ -98,14 +98,26 @@ const api: WinWinApi = {
   voterAssignBulk: (input) => invoke(IpcChannel.voterAssignBulk, input),
   voterExport: (input) => invoke(IpcChannel.voterExport, input),
   importOpen: (input) => invoke(IpcChannel.importOpen, input),
+  importSelectSheet: (input) => invoke(IpcChannel.importSelectSheet, input),
   importSetEdition: (input) => invoke(IpcChannel.importSetEdition, input),
   importSetMapping: (input) => invoke(IpcChannel.importSetMapping, input),
   importValidate: (input) => invoke(IpcChannel.importValidate, input),
+  importListStaged: (input) => invoke(IpcChannel.importListStaged, input),
+  importReviewIdentifiers: (input) => invoke(IpcChannel.importReviewIdentifiers, input),
   importAssignStaged: (input) => invoke(IpcChannel.importAssignStaged, input),
   importCommit: (input) => invoke(IpcChannel.importCommit, input),
   importCancel: (input) => invoke(IpcChannel.importCancel, input),
   importTemplate: (input) => invoke(IpcChannel.importTemplate, input),
   importErrorReport: (input) => invoke(IpcChannel.importErrorReport, input),
+  onImportProgress: (handler) => {
+    const listener = (_event: unknown, progress: { phase: string; processed: number; total: number; message: string }) => {
+      handler(progress);
+    };
+    ipcRenderer.on("winwin:import-progress", listener);
+    return () => {
+      ipcRenderer.removeListener("winwin:import-progress", listener);
+    };
+  },
   duplicateList: (input) => invoke(IpcChannel.duplicateList, input),
   duplicateReview: (input) => invoke(IpcChannel.duplicateReview, input)
 };
