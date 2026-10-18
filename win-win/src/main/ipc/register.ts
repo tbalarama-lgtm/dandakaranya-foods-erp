@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -11,7 +11,13 @@ import {
   ELECTION_TYPES,
   WORKSPACE_STATUSES,
   COVERAGE_KINDS,
-  UNIT_TYPES
+  UNIT_TYPES,
+  CONSENT_STATUSES,
+  ASSIGNMENT_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_PRIORITIES,
+  TASK_STATUSES,
+  ISSUE_CATEGORIES
 } from "@shared/constants";
 import { IpcChannel } from "@shared/ipc";
 import { toErrorPayload, AppError } from "../errors";
@@ -58,6 +64,27 @@ import {
   setVillageWard,
   updateWard
 } from "../services/wards";
+import {
+  archiveContact,
+  archivePerson,
+  createAssignment,
+  createContact,
+  createIssue,
+  createPerson,
+  createTask,
+  listAssignments,
+  listContacts,
+  listIssues,
+  listPersons,
+  listTasks,
+  getIssue,
+  updateAssignment,
+  updateContact,
+  updateIssue,
+  updatePerson,
+  updateTask,
+  wardOverview
+} from "../services/workspace";
 import { idSchema, namedSchema } from "./schemas";
 
 const optionalId = z.string().min(1).optional();
@@ -93,7 +120,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
   const db = () => manager.get();
   const dialogs = (): BackupDialogs => ({
     async saveFile(defaultName: string) {
-      const automated = process.env.WINWIN_TEST_BACKUP_FILE;
+      const automated = !app.isPackaged ? process.env.WINWIN_TEST_BACKUP_FILE : undefined;
       if (automated) {
         fs.mkdirSync(path.dirname(automated), { recursive: true });
         return automated;
@@ -107,7 +134,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       return result.canceled ? null : result.filePath ?? null;
     },
     async openFile() {
-      const automated = process.env.WINWIN_TEST_BACKUP_FILE;
+      const automated = !app.isPackaged ? process.env.WINWIN_TEST_BACKUP_FILE : undefined;
       if (automated) return automated;
       const win = getWindow();
       const options = {
@@ -119,7 +146,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       return result.canceled ? null : result.filePaths[0] ?? null;
     },
     async confirm(message: string) {
-      if (process.env.WINWIN_TEST_BACKUP_FILE) return true;
+      if (!app.isPackaged && process.env.WINWIN_TEST_BACKUP_FILE) return true;
       const win = getWindow();
       const options = {
         type: "warning" as const,
@@ -391,4 +418,157 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
   handle(IpcChannel.backupRestore, z.object({}), () => restoreBackupWithDialog(manager, dialogs()));
   handle(IpcChannel.demoLoad, z.object({}), () => loadDemoData(db()));
   handle(IpcChannel.demoStatus, z.object({}), () => demoStatus(db()));
+
+  const personWrite = z.object({
+    name: z.string().min(1),
+    nameTe: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().optional(),
+    consentStatus: z.enum(CONSENT_STATUSES),
+    consentDate: z.string().nullable().optional(),
+    consentSource: z.string().optional()
+  });
+  handle(IpcChannel.personList, z.object({ query: z.string().optional(), includeArchived: z.boolean().optional() }), (input) =>
+    listPersons(db(), input as Parameters<typeof listPersons>[1])
+  );
+  handle(IpcChannel.personCreate, personWrite, (input) => createPerson(db(), input as Parameters<typeof createPerson>[1]));
+  handle(IpcChannel.personUpdate, personWrite.extend({ id: z.string().min(1) }), (input) =>
+    updatePerson(db(), input as Parameters<typeof updatePerson>[1])
+  );
+  handle(IpcChannel.personArchive, idSchema, (input) => archivePerson(db(), (input as { id: string }).id));
+
+  const contactWrite = z.object({
+    personId: z.string().min(1).optional(),
+    person: personWrite.optional(),
+    wardId: z.string().min(1),
+    constituencyId: z.string().min(1),
+    organization: z.string().optional(),
+    publicRole: z.string().optional(),
+    areaServed: z.string().optional(),
+    recordSource: z.string().optional(),
+    lastVerifiedAt: z.string().nullable().optional(),
+    coordinationNotes: z.string().optional()
+  });
+  handle(
+    IpcChannel.contactList,
+    z.object({
+      wardId: z.string().min(1),
+      constituencyId: z.string().min(1),
+      query: z.string().optional(),
+      includeArchived: z.boolean().optional(),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(200).optional()
+    }),
+    (input) => listContacts(db(), input as Parameters<typeof listContacts>[1])
+  );
+  handle(IpcChannel.contactCreate, contactWrite, (input) => createContact(db(), input as Parameters<typeof createContact>[1]));
+  handle(IpcChannel.contactUpdate, contactWrite.extend({ id: z.string().min(1) }), (input) =>
+    updateContact(db(), input as Parameters<typeof updateContact>[1])
+  );
+  handle(IpcChannel.contactArchive, z.object({ id: z.string().min(1), constituencyId: z.string().min(1) }), (input) => {
+    const { id, constituencyId } = input as { id: string; constituencyId: string };
+    archiveContact(db(), id, constituencyId);
+  });
+
+  const assignmentWrite = z.object({
+    personId: z.string().min(1),
+    wardId: z.string().min(1),
+    constituencyId: z.string().min(1),
+    operationalRole: z.string().min(1),
+    responsibilities: z.string().optional(),
+    startDate: z.string().nullable().optional(),
+    endDate: z.string().nullable().optional(),
+    status: z.enum(ASSIGNMENT_STATUSES).optional()
+  });
+  handle(
+    IpcChannel.teamList,
+    z.object({
+      wardId: z.string().min(1),
+      constituencyId: z.string().min(1),
+      includeInactive: z.boolean().optional()
+    }),
+    (input) => listAssignments(db(), input as Parameters<typeof listAssignments>[1])
+  );
+  handle(IpcChannel.teamCreate, assignmentWrite, (input) => createAssignment(db(), input as Parameters<typeof createAssignment>[1]));
+  handle(IpcChannel.teamUpdate, assignmentWrite.extend({ id: z.string().min(1) }), (input) =>
+    updateAssignment(db(), input as Parameters<typeof updateAssignment>[1])
+  );
+
+  const issueWrite = z.object({
+    wardId: z.string().min(1),
+    constituencyId: z.string().min(1),
+    title: z.string().min(1),
+    category: z.enum(ISSUE_CATEGORIES),
+    location: z.string().optional(),
+    description: z.string().optional(),
+    reportedAt: z.string().min(1),
+    responsiblePersonId: z.string().nullable().optional(),
+    priority: z.enum(ISSUE_PRIORITIES),
+    dueDate: z.string().nullable().optional(),
+    status: z.enum(ISSUE_STATUSES).optional(),
+    resolutionNotes: z.string().optional(),
+    complainantName: z.string().optional()
+  });
+  handle(
+    IpcChannel.issueList,
+    z.object({
+      wardId: z.string().min(1),
+      constituencyId: z.string().min(1),
+      query: z.string().optional(),
+      category: z.string().optional(),
+      status: z.union([z.enum(ISSUE_STATUSES), z.literal("")]).optional(),
+      priority: z.union([z.enum(ISSUE_PRIORITIES), z.literal("")]).optional(),
+      responsiblePersonId: z.union([z.string(), z.literal("")]).optional(),
+      includeArchived: z.boolean().optional(),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(200).optional()
+    }),
+    (input) => listIssues(db(), input as Parameters<typeof listIssues>[1])
+  );
+  handle(IpcChannel.issueGet, z.object({ id: z.string().min(1), constituencyId: z.string().min(1) }), (input) => {
+    const { id, constituencyId } = input as { id: string; constituencyId: string };
+    return getIssue(db(), id, constituencyId);
+  });
+  handle(IpcChannel.issueCreate, issueWrite, (input) => createIssue(db(), input as Parameters<typeof createIssue>[1]));
+  handle(IpcChannel.issueUpdate, issueWrite.extend({ id: z.string().min(1) }), (input) =>
+    updateIssue(db(), input as Parameters<typeof updateIssue>[1])
+  );
+
+  const taskWrite = z.object({
+    wardId: z.string().min(1),
+    constituencyId: z.string().min(1),
+    title: z.string().min(1),
+    assignedPersonId: z.string().nullable().optional(),
+    relatedIssueId: z.string().nullable().optional(),
+    dueDate: z.string().nullable().optional(),
+    status: z.enum(TASK_STATUSES).optional(),
+    description: z.string().optional(),
+    completedAt: z.string().nullable().optional(),
+    completionNotes: z.string().optional(),
+    allowInactiveAssignee: z.boolean().optional()
+  });
+  handle(
+    IpcChannel.taskList,
+    z.object({
+      wardId: z.string().min(1),
+      constituencyId: z.string().min(1),
+      query: z.string().optional(),
+      status: z.union([z.enum(TASK_STATUSES), z.literal("")]).optional(),
+      assignedPersonId: z.union([z.string(), z.literal("")]).optional(),
+      filter: z.enum(["overdue", "upcoming", "completed", "open", ""]).optional(),
+      includeArchived: z.boolean().optional(),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(200).optional()
+    }),
+    (input) => listTasks(db(), input as Parameters<typeof listTasks>[1])
+  );
+  handle(IpcChannel.taskCreate, taskWrite, (input) => createTask(db(), input as Parameters<typeof createTask>[1]));
+  handle(IpcChannel.taskUpdate, taskWrite.extend({ id: z.string().min(1) }), (input) =>
+    updateTask(db(), input as Parameters<typeof updateTask>[1])
+  );
+  handle(
+    IpcChannel.wardOverview,
+    z.object({ wardId: z.string().min(1), constituencyId: z.string().min(1) }),
+    (input) => wardOverview(db(), input as Parameters<typeof wardOverview>[1])
+  );
 }

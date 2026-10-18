@@ -66,7 +66,26 @@ const api: WinWinApi = {
   backupCreate: () => invoke(IpcChannel.backupCreate),
   backupRestore: () => invoke(IpcChannel.backupRestore),
   demoLoad: () => invoke(IpcChannel.demoLoad),
-  demoStatus: () => invoke(IpcChannel.demoStatus)
+  demoStatus: () => invoke(IpcChannel.demoStatus),
+  personList: (input) => invoke(IpcChannel.personList, input ?? {}),
+  personCreate: (input) => invoke(IpcChannel.personCreate, input),
+  personUpdate: (input) => invoke(IpcChannel.personUpdate, input),
+  personArchive: (id) => invoke(IpcChannel.personArchive, { id }),
+  contactList: (input) => invoke(IpcChannel.contactList, input),
+  contactCreate: (input) => invoke(IpcChannel.contactCreate, input),
+  contactUpdate: (input) => invoke(IpcChannel.contactUpdate, input),
+  contactArchive: (input) => invoke(IpcChannel.contactArchive, input),
+  teamList: (input) => invoke(IpcChannel.teamList, input),
+  teamCreate: (input) => invoke(IpcChannel.teamCreate, input),
+  teamUpdate: (input) => invoke(IpcChannel.teamUpdate, input),
+  issueList: (input) => invoke(IpcChannel.issueList, input),
+  issueGet: (input) => invoke(IpcChannel.issueGet, input),
+  issueCreate: (input) => invoke(IpcChannel.issueCreate, input),
+  issueUpdate: (input) => invoke(IpcChannel.issueUpdate, input),
+  taskList: (input) => invoke(IpcChannel.taskList, input),
+  taskCreate: (input) => invoke(IpcChannel.taskCreate, input),
+  taskUpdate: (input) => invoke(IpcChannel.taskUpdate, input),
+  wardOverview: (input) => invoke(IpcChannel.wardOverview, input)
 };
 
 contextBridge.exposeInMainWorld("winwin", api);

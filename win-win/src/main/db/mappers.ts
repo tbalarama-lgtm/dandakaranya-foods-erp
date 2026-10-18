@@ -1,22 +1,34 @@
 import type {
   AssemblyConstituency,
+  AssignmentStatus,
   AuditRecord,
   BoundaryVersion,
+  ConsentStatus,
   ConstituencyCoverage,
   CoverageKind,
   ElectionCoverageLink,
   ElectionWorkspace,
   ElectionWardLink,
   GramPanchayat,
+  Issue,
+  IssuePriority,
+  IssueStatus,
+  IssueStatusHistory,
   Mandal,
+  Person,
+  TaskItem,
+  TaskStatus,
+  TeamAssignment,
   UrbanBodyType,
   UrbanLocalBody,
   Village,
   VillageWardMapping,
   Ward,
   WardClassification,
+  WardContact,
   WorkspaceStatus
 } from "@shared/types";
+import { isOverdue } from "@shared/dates";
 
 export function asBool(value: number): boolean {
   return value === 1;
@@ -139,6 +151,113 @@ export function mapElectionCoverage(row: Record<string, unknown>): ElectionCover
     unitId: String(row.unit_id),
     coverageKind: String(row.coverage_kind) as CoverageKind,
     unitNameSnapshot: String(row.unit_name_snapshot)
+  };
+}
+
+export function mapPerson(row: Record<string, unknown>): Person {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    nameTe: String(row.name_te ?? ""),
+    phone: String(row.phone ?? ""),
+    email: String(row.email ?? ""),
+    consentStatus: String(row.consent_status) as ConsentStatus,
+    consentDate: row.consent_date ? String(row.consent_date) : null,
+    consentSource: String(row.consent_source ?? ""),
+    archived: asBool(Number(row.archived)),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
+  };
+}
+
+export function mapContact(row: Record<string, unknown>, person: Person): WardContact {
+  return {
+    id: String(row.id),
+    personId: String(row.person_id),
+    wardId: String(row.ward_id),
+    constituencyId: String(row.constituency_id),
+    organization: String(row.organization ?? ""),
+    publicRole: String(row.public_role ?? ""),
+    areaServed: String(row.area_served ?? ""),
+    recordSource: String(row.record_source ?? ""),
+    lastVerifiedAt: row.last_verified_at ? String(row.last_verified_at) : null,
+    coordinationNotes: String(row.coordination_notes ?? ""),
+    archived: asBool(Number(row.archived)),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    person
+  };
+}
+
+export function mapAssignment(row: Record<string, unknown>, person?: Person): TeamAssignment {
+  return {
+    id: String(row.id),
+    personId: String(row.person_id),
+    wardId: String(row.ward_id),
+    constituencyId: String(row.constituency_id),
+    operationalRole: String(row.operational_role),
+    responsibilities: String(row.responsibilities ?? ""),
+    startDate: row.start_date ? String(row.start_date) : null,
+    endDate: row.end_date ? String(row.end_date) : null,
+    status: String(row.status) as AssignmentStatus,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    person
+  };
+}
+
+export function mapIssue(row: Record<string, unknown>): Issue {
+  return {
+    id: String(row.id),
+    wardId: String(row.ward_id),
+    constituencyId: String(row.constituency_id),
+    referenceNumber: String(row.reference_number),
+    title: String(row.title),
+    category: String(row.category),
+    location: String(row.location ?? ""),
+    description: String(row.description ?? ""),
+    reportedAt: String(row.reported_at),
+    responsiblePersonId: row.responsible_person_id ? String(row.responsible_person_id) : null,
+    priority: String(row.priority) as IssuePriority,
+    dueDate: row.due_date ? String(row.due_date) : null,
+    status: String(row.status) as IssueStatus,
+    resolutionNotes: String(row.resolution_notes ?? ""),
+    complainantName: String(row.complainant_name ?? ""),
+    archived: asBool(Number(row.archived)),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
+  };
+}
+
+export function mapIssueHistory(row: Record<string, unknown>): IssueStatusHistory {
+  return {
+    id: String(row.id),
+    issueId: String(row.issue_id),
+    status: String(row.status) as IssueStatus,
+    note: String(row.note ?? ""),
+    changedAt: String(row.changed_at)
+  };
+}
+
+export function mapTask(row: Record<string, unknown>): TaskItem {
+  const status = String(row.status) as TaskStatus;
+  const dueDate = row.due_date ? String(row.due_date) : null;
+  return {
+    id: String(row.id),
+    wardId: String(row.ward_id),
+    constituencyId: String(row.constituency_id),
+    title: String(row.title),
+    assignedPersonId: row.assigned_person_id ? String(row.assigned_person_id) : null,
+    relatedIssueId: row.related_issue_id ? String(row.related_issue_id) : null,
+    dueDate,
+    status,
+    description: String(row.description ?? ""),
+    completedAt: row.completed_at ? String(row.completed_at) : null,
+    completionNotes: String(row.completion_notes ?? ""),
+    archived: asBool(Number(row.archived)),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    overdue: isOverdue(dueDate, status)
   };
 }
 

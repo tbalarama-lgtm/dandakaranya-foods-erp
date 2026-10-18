@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { APP_ID, APP_VERSION, SCHEMA_VERSION } from "@shared/constants";
-import { nowIso } from "./ids";
+import { newId, nowIso } from "./ids";
 
 export const MIGRATIONS: Array<{ version: number; sql: string }> = [
   {
@@ -441,6 +441,34 @@ CREATE TABLE duplicate_pairs (
   UNIQUE(roll_edition_id, voter_a_id, voter_b_id)
 );
 `
+  },
+  {
+    version: 4,
+    sql: `
+CREATE TABLE ward_contact_links (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ward_id TEXT NOT NULL REFERENCES wards(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  constituency_id TEXT NOT NULL REFERENCES assembly_constituencies(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  organization TEXT NOT NULL DEFAULT '',
+  public_role TEXT NOT NULL DEFAULT '',
+  area_served TEXT NOT NULL DEFAULT '',
+  record_source TEXT NOT NULL DEFAULT '',
+  last_verified_at TEXT,
+  coordination_notes TEXT NOT NULL DEFAULT '',
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (person_id, ward_id)
+);
+
+CREATE INDEX ix_contact_links_ward ON ward_contact_links(ward_id, constituency_id, archived);
+CREATE INDEX ix_contact_links_person ON ward_contact_links(person_id);
+CREATE INDEX ix_contact_links_org ON ward_contact_links(organization, public_role);
+CREATE INDEX ix_issues_responsible ON issues(responsible_person_id, status);
+CREATE INDEX ix_tasks_issue ON tasks(related_issue_id);
+CREATE INDEX ix_persons_consent ON persons(consent_status, archived);
+`
   }
 ];
 
@@ -459,7 +487,62 @@ export function applyMigrations(db: Database.Database): void {
     });
     tx();
   }
+  backfillContactLinks(db);
   seedMeta(db);
+}
+
+function backfillContactLinks(db: Database.Database): void {
+  const legacy = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ward_contacts'")
+    .get() as { name: string } | undefined;
+  const links = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ward_contact_links'")
+    .get() as { name: string } | undefined;
+  if (!legacy || !links) return;
+  const rows = db.prepare("SELECT * FROM ward_contacts").all() as Array<Record<string, unknown>>;
+  const insertPerson = db.prepare(
+    `INSERT INTO persons (id, name, name_te, phone, email, consent_status, consent_date, consent_source, archived, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertLink = db.prepare(
+    `INSERT INTO ward_contact_links (
+      id, person_id, ward_id, constituency_id, organization, public_role, area_served,
+      record_source, last_verified_at, coordination_notes, archived, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const existing = db.prepare("SELECT id FROM ward_contact_links WHERE id = ?");
+  for (const row of rows) {
+    if (existing.get(String(row.id))) continue;
+    const personId = newId();
+    insertPerson.run(
+      personId,
+      String(row.name),
+      String(row.name_te ?? ""),
+      String(row.phone ?? ""),
+      String(row.email ?? ""),
+      String(row.consent_status ?? "unknown"),
+      row.consent_date ?? null,
+      String(row.consent_source ?? ""),
+      Number(row.archived ?? 0),
+      String(row.created_at),
+      String(row.updated_at)
+    );
+    insertLink.run(
+      String(row.id),
+      personId,
+      String(row.ward_id),
+      String(row.constituency_id),
+      String(row.organization ?? ""),
+      String(row.public_role ?? ""),
+      String(row.area_served ?? ""),
+      String(row.record_source ?? ""),
+      row.last_verified_at ?? null,
+      String(row.coordination_notes ?? ""),
+      Number(row.archived ?? 0),
+      String(row.created_at),
+      String(row.updated_at)
+    );
+  }
 }
 
 export function seedMeta(db: Database.Database): void {

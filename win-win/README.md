@@ -134,6 +134,8 @@ Startup entry: `out/main/index.js` (`package.json` `main` and `electron-builder.
 
 The database starts empty. Settings can load labelled `[DEMO]` records only into an empty workspace.
 
-## Phase 2 (not in this build)
+## Phase 2 ward workspace
 
-Voter rolls and CSV/XLSX import, ward contacts, team, issues, tasks, documents, reports.
+Each rural and urban ward opens a workspace: **Overview | Contacts | Team | Issues | Tasks**. Contacts separate person identity from ward associations. Phone and email require recorded consent. Team assignment history is kept. Issues have dated status history. Tasks calculate overdue dates with the local calendar.
+
+Voter rolls, CSV/XLSX import, messaging and documents are not in this build.

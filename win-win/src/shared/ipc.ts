@@ -48,7 +48,26 @@ export const IpcChannel = {
   backupCreate: "winwin:backupCreate",
   backupRestore: "winwin:backupRestore",
   demoLoad: "winwin:demoLoad",
-  demoStatus: "winwin:demoStatus"
+  demoStatus: "winwin:demoStatus",
+  personList: "winwin:personList",
+  personCreate: "winwin:personCreate",
+  personUpdate: "winwin:personUpdate",
+  personArchive: "winwin:personArchive",
+  contactList: "winwin:contactList",
+  contactCreate: "winwin:contactCreate",
+  contactUpdate: "winwin:contactUpdate",
+  contactArchive: "winwin:contactArchive",
+  teamList: "winwin:teamList",
+  teamCreate: "winwin:teamCreate",
+  teamUpdate: "winwin:teamUpdate",
+  issueList: "winwin:issueList",
+  issueGet: "winwin:issueGet",
+  issueCreate: "winwin:issueCreate",
+  issueUpdate: "winwin:issueUpdate",
+  taskList: "winwin:taskList",
+  taskCreate: "winwin:taskCreate",
+  taskUpdate: "winwin:taskUpdate",
+  wardOverview: "winwin:wardOverview"
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -166,6 +185,63 @@ export interface WinWinApi {
   backupRestore: () => Promise<import("./types").RestoreResult>;
   demoLoad: () => Promise<{ loaded: boolean }>;
   demoStatus: () => Promise<{ dataKind: import("./types").DataKind; canLoadDemo: boolean }>;
+  personList: (input?: { query?: string; includeArchived?: boolean }) => Promise<import("./types").Person[]>;
+  personCreate: (input: PersonWriteInput) => Promise<import("./types").Person>;
+  personUpdate: (input: PersonWriteInput & { id: string }) => Promise<import("./types").Person>;
+  personArchive: (id: string) => Promise<void>;
+  contactList: (input: {
+    wardId: string;
+    constituencyId: string;
+    query?: string;
+    includeArchived?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => Promise<import("./types").PagedResult<import("./types").WardContact>>;
+  contactCreate: (input: ContactWriteInput) => Promise<import("./types").WardContact>;
+  contactUpdate: (input: ContactWriteInput & { id: string }) => Promise<import("./types").WardContact>;
+  contactArchive: (input: { id: string; constituencyId: string }) => Promise<void>;
+  teamList: (input: {
+    wardId: string;
+    constituencyId: string;
+    includeInactive?: boolean;
+  }) => Promise<import("./types").TeamAssignment[]>;
+  teamCreate: (input: AssignmentWriteInput) => Promise<import("./types").TeamAssignment>;
+  teamUpdate: (input: AssignmentWriteInput & { id: string }) => Promise<import("./types").TeamAssignment>;
+  issueList: (input: {
+    wardId: string;
+    constituencyId: string;
+    query?: string;
+    category?: string;
+    status?: import("./types").IssueStatus | "";
+    priority?: import("./types").IssuePriority | "";
+    responsiblePersonId?: string | "";
+    includeArchived?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => Promise<import("./types").PagedResult<import("./types").Issue>>;
+  issueGet: (input: {
+    id: string;
+    constituencyId: string;
+  }) => Promise<{ issue: import("./types").Issue; history: import("./types").IssueStatusHistory[] }>;
+  issueCreate: (input: IssueWriteInput) => Promise<import("./types").Issue>;
+  issueUpdate: (input: IssueWriteInput & { id: string }) => Promise<import("./types").Issue>;
+  taskList: (input: {
+    wardId: string;
+    constituencyId: string;
+    query?: string;
+    status?: import("./types").TaskStatus | "";
+    assignedPersonId?: string | "";
+    filter?: "overdue" | "upcoming" | "completed" | "open" | "";
+    includeArchived?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => Promise<import("./types").PagedResult<import("./types").TaskItem>>;
+  taskCreate: (input: TaskWriteInput) => Promise<{ task: import("./types").TaskItem; warning: string | null }>;
+  taskUpdate: (input: TaskWriteInput & { id: string }) => Promise<{
+    task: import("./types").TaskItem;
+    warning: string | null;
+  }>;
+  wardOverview: (input: { wardId: string; constituencyId: string }) => Promise<import("./types").WardOverview>;
 }
 
 export interface NamedInput {
@@ -203,4 +279,68 @@ export interface ElectionWriteInput {
     unitId: string;
     coverageKind: import("./types").CoverageKind;
   }>;
+}
+
+export interface PersonWriteInput {
+  name: string;
+  nameTe?: string;
+  phone?: string;
+  email?: string;
+  consentStatus: import("./types").ConsentStatus;
+  consentDate?: string | null;
+  consentSource?: string;
+}
+
+export interface ContactWriteInput {
+  personId?: string;
+  person?: PersonWriteInput;
+  wardId: string;
+  constituencyId: string;
+  organization?: string;
+  publicRole?: string;
+  areaServed?: string;
+  recordSource?: string;
+  lastVerifiedAt?: string | null;
+  coordinationNotes?: string;
+}
+
+export interface AssignmentWriteInput {
+  personId: string;
+  wardId: string;
+  constituencyId: string;
+  operationalRole: string;
+  responsibilities?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: import("./types").AssignmentStatus;
+}
+
+export interface IssueWriteInput {
+  wardId: string;
+  constituencyId: string;
+  title: string;
+  category: string;
+  location?: string;
+  description?: string;
+  reportedAt: string;
+  responsiblePersonId?: string | null;
+  priority: import("./types").IssuePriority;
+  dueDate?: string | null;
+  status?: import("./types").IssueStatus;
+  resolutionNotes?: string;
+  complainantName?: string;
+}
+
+export interface TaskWriteInput {
+  wardId: string;
+  constituencyId: string;
+  title: string;
+  assignedPersonId?: string | null;
+  relatedIssueId?: string | null;
+  dueDate?: string | null;
+  status?: import("./types").TaskStatus;
+  description?: string;
+  completedAt?: string | null;
+  completionNotes?: string;
+  allowInactiveAssignee?: boolean;
 }

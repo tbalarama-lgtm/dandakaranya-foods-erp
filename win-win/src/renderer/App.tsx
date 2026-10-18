@@ -15,7 +15,7 @@ import { ElectionsPage } from "./pages/ElectionsPage";
 import { RuralPage } from "./pages/RuralPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UrbanPage } from "./pages/UrbanPage";
-import { WardDetailPage } from "./pages/WardDetailPage";
+import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
 
 export interface AppModel {
@@ -182,7 +182,7 @@ export function App(): JSX.Element {
           <Route path="/rural/*" element={<RuralPage model={model} />} />
           <Route path="/urban/*" element={<UrbanPage model={model} />} />
           <Route path="/wards" element={<WardsPage model={model} />} />
-          <Route path="/wards/:id" element={<WardDetailPage model={model} />} />
+          <Route path="/wards/:id/*" element={<WardWorkspacePage model={model} />} />
           <Route path="/coverage" element={<CoveragePage model={model} />} />
           <Route path="/backup" element={<BackupPage model={model} />} />
           <Route path="/settings" element={<SettingsPage model={model} />} />

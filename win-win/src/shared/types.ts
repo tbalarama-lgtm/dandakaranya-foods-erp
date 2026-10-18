@@ -241,24 +241,19 @@ export interface Person {
 
 export interface WardContact {
   id: string;
+  personId: string;
   wardId: string;
   constituencyId: string;
-  name: string;
-  nameTe: string;
   organization: string;
   publicRole: string;
   areaServed: string;
-  phone: string;
-  email: string;
-  consentStatus: ConsentStatus;
-  consentDate: string | null;
-  consentSource: string;
   recordSource: string;
   lastVerifiedAt: string | null;
   coordinationNotes: string;
   archived: boolean;
   createdAt: string;
   updatedAt: string;
+  person: Person;
 }
 
 export interface TeamAssignment {
@@ -323,15 +318,20 @@ export interface TaskItem {
   overdue?: boolean;
 }
 
+export interface ActivityItem {
+  at: string;
+  kind: "contact" | "team" | "issue" | "task";
+  summary: string;
+  recordId: string;
+}
+
 export interface WardOverview {
-  contacts: number;
-  teamMembers: number;
-  issues: number;
-  tasks: number;
+  activeContacts: number;
+  activeTeamAssignments: number;
   unresolvedIssues: number;
+  openTasks: number;
   overdueTasks: number;
-  upcomingTasks: TaskItem[];
-  unresolvedIssueItems: Issue[];
+  recentActivity: ActivityItem[];
 }
 
 export interface PlatformInfo {
