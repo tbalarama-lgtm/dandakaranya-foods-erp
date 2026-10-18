@@ -1,0 +1,72 @@
+import { contextBridge, ipcRenderer } from "electron";
+import { IpcChannel, type WinWinApi } from "@shared/ipc";
+
+async function invoke<T>(channel: string, payload: unknown = {}): Promise<T> {
+  const result = (await ipcRenderer.invoke(channel, payload)) as
+    | { ok: true; data: T }
+    | { ok: false; error: { code: string; message: string } };
+  if (!result || typeof result !== "object" || !("ok" in result)) {
+    throw new Error("Malformed IPC response");
+  }
+  if (!result.ok) {
+    const error = new Error(result.error.message);
+    (error as Error & { code: string }).code = result.error.code;
+    throw error;
+  }
+  return result.data;
+}
+
+const api: WinWinApi = {
+  platform: () => invoke(IpcChannel.platform),
+  appInfo: () => invoke(IpcChannel.appInfo),
+  settingsGet: () => invoke(IpcChannel.settingsGet),
+  settingsUpdate: (input) => invoke(IpcChannel.settingsUpdate, input),
+  dashboardCounts: (input) => invoke(IpcChannel.dashboardCounts, input),
+  boundaryList: () => invoke(IpcChannel.boundaryList),
+  boundaryCreate: (input) => invoke(IpcChannel.boundaryCreate, input),
+  boundaryUpdate: (input) => invoke(IpcChannel.boundaryUpdate, input),
+  constituencyList: (includeArchived) => invoke(IpcChannel.constituencyList, { includeArchived }),
+  constituencyCreate: (input) => invoke(IpcChannel.constituencyCreate, input),
+  constituencyUpdate: (input) => invoke(IpcChannel.constituencyUpdate, input),
+  constituencyArchive: (id) => invoke(IpcChannel.constituencyArchive, { id }),
+  mandalList: (input) => invoke(IpcChannel.mandalList, input ?? {}),
+  mandalCreate: (input) => invoke(IpcChannel.mandalCreate, input),
+  mandalUpdate: (input) => invoke(IpcChannel.mandalUpdate, input),
+  mandalArchive: (id) => invoke(IpcChannel.mandalArchive, { id }),
+  gpList: (input) => invoke(IpcChannel.gpList, input ?? {}),
+  gpCreate: (input) => invoke(IpcChannel.gpCreate, input),
+  gpUpdate: (input) => invoke(IpcChannel.gpUpdate, input),
+  gpArchive: (id) => invoke(IpcChannel.gpArchive, { id }),
+  villageList: (input) => invoke(IpcChannel.villageList, input ?? {}),
+  villageCreate: (input) => invoke(IpcChannel.villageCreate, input),
+  villageUpdate: (input) => invoke(IpcChannel.villageUpdate, input),
+  villageArchive: (id) => invoke(IpcChannel.villageArchive, { id }),
+  ulbList: (input) => invoke(IpcChannel.ulbList, input ?? {}),
+  ulbCreate: (input) => invoke(IpcChannel.ulbCreate, input),
+  ulbUpdate: (input) => invoke(IpcChannel.ulbUpdate, input),
+  ulbArchive: (id) => invoke(IpcChannel.ulbArchive, { id }),
+  wardList: (input) => invoke(IpcChannel.wardList, input),
+  wardGet: (id) => invoke(IpcChannel.wardGet, { id }),
+  wardCreate: (input) => invoke(IpcChannel.wardCreate, input),
+  wardUpdate: (input) => invoke(IpcChannel.wardUpdate, input),
+  wardArchive: (id) => invoke(IpcChannel.wardArchive, { id }),
+  villageWardList: (wardId) => invoke(IpcChannel.villageWardList, { wardId }),
+  villageWardSet: (input) => invoke(IpcChannel.villageWardSet, input),
+  villageWardDelete: (id) => invoke(IpcChannel.villageWardDelete, { id }),
+  coverageList: (input) => invoke(IpcChannel.coverageList, input),
+  coverageSet: (input) => invoke(IpcChannel.coverageSet, input),
+  coverageDelete: (id) => invoke(IpcChannel.coverageDelete, { id }),
+  scopeGet: (input) => invoke(IpcChannel.scopeGet, input),
+  electionList: (input) => invoke(IpcChannel.electionList, input ?? {}),
+  electionGet: (id) => invoke(IpcChannel.electionGet, { id }),
+  electionCreate: (input) => invoke(IpcChannel.electionCreate, input),
+  electionUpdate: (input) => invoke(IpcChannel.electionUpdate, input),
+  electionArchive: (id) => invoke(IpcChannel.electionArchive, { id }),
+  auditList: (input) => invoke(IpcChannel.auditList, input ?? {}),
+  backupCreate: () => invoke(IpcChannel.backupCreate),
+  backupRestore: () => invoke(IpcChannel.backupRestore),
+  demoLoad: () => invoke(IpcChannel.demoLoad),
+  demoStatus: () => invoke(IpcChannel.demoStatus)
+};
+
+contextBridge.exposeInMainWorld("winwin", api);

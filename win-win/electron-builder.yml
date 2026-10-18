@@ -1,0 +1,50 @@
+appId: com.winwin.electionadmin
+productName: WIN WIN
+copyright: WIN WIN
+asar: true
+asarUnpack:
+  - "**/*.node"
+  - "**/better-sqlite3/**"
+npmRebuild: true
+nodeGypRebuild: false
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+extraMetadata:
+  main: out/main/index.js
+forceCodeSigning: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: WIN-WIN-Setup-${version}-windows-${arch}.${ext}
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WIN WIN
+  uninstallDisplayName: WIN WIN
+  deleteAppDataOnUninstall: false
+mac:
+  category: public.app-category.productivity
+  artifactName: WIN-WIN-${version}-macos-${arch}.${ext}
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  identity: null
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  darkModeSupport: false
+dmg:
+  artifactName: WIN-WIN-${version}-macos-${arch}.${ext}
+linux:
+  target:
+    - dir
