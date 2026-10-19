@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useSearchParams } from "react-router-dom";
 import type {
   ElectionWorkspace,
   GramPanchayat,
@@ -30,10 +30,11 @@ function SeatCode({ code, women }: { code: string; women?: boolean }): JSX.Eleme
 }
 
 function useReservationScope(model: AppModel) {
+  const [params] = useSearchParams();
   const [elections, setElections] = useState<ElectionWorkspace[]>([]);
   const [notes, setNotes] = useState<ReservationNotification[]>([]);
-  const [electionId, setElectionId] = useState("");
-  const [notificationId, setNotificationId] = useState("");
+  const [electionId, setElectionId] = useState(params.get("election") ?? "");
+  const [notificationId, setNotificationId] = useState(params.get("notification") ?? "");
   const [mandals, setMandals] = useState<Mandal[]>([]);
   const [gps, setGps] = useState<GramPanchayat[]>([]);
 

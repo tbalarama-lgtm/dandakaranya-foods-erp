@@ -5,6 +5,7 @@ export const IpcChannel = {
   settingsUpdate: "winwin:settingsUpdate",
   dashboardCounts: "winwin:dashboardCounts",
   dashboardAttention: "winwin:dashboardAttention",
+  geoDashboard: "winwin:geoDashboard",
   boundaryList: "winwin:boundaryList",
   boundaryCreate: "winwin:boundaryCreate",
   boundaryUpdate: "winwin:boundaryUpdate",
@@ -114,7 +115,35 @@ export const IpcChannel = {
   reservationMatrix: "winwin:reservationMatrix",
   reservationExport: "winwin:reservationExport",
   reservationHistory: "winwin:reservationHistory",
-  reservationForUnit: "winwin:reservationForUnit"
+  reservationForUnit: "winwin:reservationForUnit",
+  orgList: "winwin:orgList",
+  orgCreate: "winwin:orgCreate",
+  orgUpdate: "winwin:orgUpdate",
+  orgArchive: "winwin:orgArchive",
+  orgWingList: "winwin:orgWingList",
+  orgWingCreate: "winwin:orgWingCreate",
+  orgUnitList: "winwin:orgUnitList",
+  orgUnitCreate: "winwin:orgUnitCreate",
+  orgUnitUpdate: "winwin:orgUnitUpdate",
+  orgUnitSetGeo: "winwin:orgUnitSetGeo",
+  orgPostList: "winwin:orgPostList",
+  orgPostCreate: "winwin:orgPostCreate",
+  orgPostUpdate: "winwin:orgPostUpdate",
+  orgPostTree: "winwin:orgPostTree",
+  orgAppointmentList: "winwin:orgAppointmentList",
+  orgAppointmentCreate: "winwin:orgAppointmentCreate",
+  orgAppointmentUpdate: "winwin:orgAppointmentUpdate",
+  orgAppointmentHistory: "winwin:orgAppointmentHistory",
+  orgHistory: "winwin:orgHistory",
+  orgOverview: "winwin:orgOverview",
+  orgVacancies: "winwin:orgVacancies",
+  orgExpiry: "winwin:orgExpiry",
+  orgImportOpen: "winwin:orgImportOpen",
+  orgImportMap: "winwin:orgImportMap",
+  orgImportCommit: "winwin:orgImportCommit",
+  orgImportCancel: "winwin:orgImportCancel",
+  orgImportTemplate: "winwin:orgImportTemplate",
+  orgExport: "winwin:orgExport"
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -129,6 +158,7 @@ export interface WinWinApi {
     boundaryVersionId: string;
   }) => Promise<import("./types").DashboardCounts>;
   dashboardAttention: (input: { constituencyId: string }) => Promise<import("./types").DashboardAttention>;
+  geoDashboard: (input: import("./types").GeoDashboardQuery) => Promise<import("./types").GeoDashboard>;
   boundaryList: () => Promise<import("./types").BoundaryVersion[]>;
   boundaryCreate: (input: {
     name: string;
@@ -462,6 +492,141 @@ export interface WinWinApi {
     gramPanchayatId?: string;
     wardId?: string;
   }) => Promise<import("./types").ReservationSeat[]>;
+  orgList: (includeArchived?: boolean) => Promise<import("./types").Organization[]>;
+  orgCreate: (input: {
+    name: string;
+    nameTe?: string;
+    notes?: string;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+  }) => Promise<import("./types").Organization>;
+  orgUpdate: (input: {
+    id: string;
+    name: string;
+    nameTe?: string;
+    notes?: string;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    archived?: boolean;
+  }) => Promise<import("./types").Organization>;
+  orgArchive: (id: string) => Promise<void>;
+  orgWingList: (organizationId: string) => Promise<import("./types").OrganizationWing[]>;
+  orgWingCreate: (input: { organizationId: string; name: string; notes?: string }) => Promise<import("./types").OrganizationWing>;
+  orgUnitList: (input: { organizationId: string; includeArchived?: boolean }) => Promise<import("./types").OrganizationUnit[]>;
+  orgUnitCreate: (input: {
+    organizationId: string;
+    name: string;
+    unitKind: import("./types").OrgUnitKind;
+    level: import("./types").OrgUnitLevel;
+    wingId?: string | null;
+    parentUnitId?: string | null;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    geo?: Array<{ geoType: import("./types").OrgGeoType; geoId: string; notes?: string }>;
+  }) => Promise<import("./types").OrganizationUnit>;
+  orgUnitUpdate: (input: {
+    id: string;
+    name: string;
+    unitKind: import("./types").OrgUnitKind;
+    level: import("./types").OrgUnitLevel;
+    wingId?: string | null;
+    parentUnitId?: string | null;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    archived?: boolean;
+  }) => Promise<import("./types").OrganizationUnit>;
+  orgUnitSetGeo: (input: {
+    unitId: string;
+    links: Array<{ geoType: import("./types").OrgGeoType; geoId: string; notes?: string }>;
+  }) => Promise<import("./types").OrganizationUnit>;
+  orgPostList: (input: {
+    organizationId: string;
+    unitId?: string;
+    includeArchived?: boolean;
+  }) => Promise<import("./types").OrganizationPost[]>;
+  orgPostCreate: (input: {
+    organizationId: string;
+    unitId: string;
+    title: string;
+    wingId?: string | null;
+    authorizedPositions?: number | null;
+    parentPostId?: string | null;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+  }) => Promise<import("./types").OrganizationPost>;
+  orgPostUpdate: (input: {
+    id: string;
+    title: string;
+    unitId: string;
+    wingId?: string | null;
+    authorizedPositions?: number | null;
+    parentPostId?: string | null;
+    sourceReference?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    archived?: boolean;
+  }) => Promise<import("./types").OrganizationPost>;
+  orgPostTree: (organizationId: string) => Promise<import("./types").OrgReportingNode[]>;
+  orgAppointmentList: (input: {
+    organizationId: string;
+    postId?: string;
+    coveringOnly?: boolean;
+    includeEnded?: boolean;
+  }) => Promise<import("./types").OrganizationAppointment[]>;
+  orgAppointmentCreate: (input: {
+    postId: string;
+    officeHolderName: string;
+    membershipReference?: string;
+    appointmentReference?: string;
+    appointmentDate?: string | null;
+    startDate: string;
+    endDate?: string | null;
+    status: import("./types").OrgAppointmentStatus;
+    consentSource?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    verificationNotes?: string;
+    allowOverlap?: boolean;
+  }) => Promise<import("./types").OrganizationAppointment>;
+  orgAppointmentUpdate: (input: {
+    id: string;
+    membershipReference?: string;
+    appointmentReference?: string;
+    appointmentDate?: string | null;
+    startDate: string;
+    endDate?: string | null;
+    status: import("./types").OrgAppointmentStatus;
+    consentSource?: string;
+    verificationStatus?: import("./types").VerificationStatus;
+    verificationNotes?: string;
+    allowOverlap?: boolean;
+  }) => Promise<import("./types").OrganizationAppointment>;
+  orgAppointmentHistory: (appointmentId: string) => Promise<import("./types").OrganizationAppointmentHistory[]>;
+  orgHistory: (organizationId: string) => Promise<
+    Array<import("./types").OrganizationAppointmentHistory & { officeHolderName: string; postTitle: string }>
+  >;
+  orgOverview: (organizationId?: string) => Promise<import("./types").OrgOverview>;
+  orgVacancies: (organizationId: string) => Promise<import("./types").OrgPostCapacity[]>;
+  orgExpiry: (input: {
+    organizationId: string;
+    windowDays: 30 | 60 | 90;
+  }) => Promise<import("./types").OrganizationAppointment[]>;
+  orgImportOpen: (input: {
+    organizationId: string;
+    kind: import("./types").OrgImportKind;
+  }) => Promise<{ cancelled: true } | import("./types").OrgImportSession>;
+  orgImportMap: (input: {
+    sessionId: string;
+    mapping: Record<string, string | null>;
+  }) => Promise<import("./types").OrgImportSession>;
+  orgImportCommit: (input: {
+    sessionId: string;
+    confirmOverlaps?: boolean;
+  }) => Promise<import("./types").OrgImportCommitResult>;
+  orgImportCancel: (sessionId: string) => Promise<void>;
+  orgImportTemplate: (input: {
+    kind: import("./types").OrgImportKind;
+    format: "csv" | "xlsx";
+  }) => Promise<{ cancelled: boolean; path?: string }>;
+  orgExport: (input: import("./types").OrgExportInput) => Promise<{ cancelled: boolean; path?: string }>;
 }
 
 export interface NamedInput {

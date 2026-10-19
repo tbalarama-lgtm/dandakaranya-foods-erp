@@ -1,7 +1,7 @@
 export const APP_ID = "win-win.local.election-admin";
 export const APP_NAME = "WIN WIN";
 export const APP_VERSION = "1.0.0";
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 export const MIN_COMPATIBLE_SCHEMA = 1;
 export const BACKUP_MAGIC = "WWINBAK1";
 export const BACKUP_FORMAT_VERSION = 1;
@@ -120,3 +120,22 @@ export const RESERVATION_CONTROL_EXPECTATIONS = {
   sarpanchByCode: { UR: 13, "UR(W)": 12, BC: 8, "BC(W)": 7, SC: 5, "SC(W)": 3 },
   wardByCode: { UR: 125, "UR(W)": 157, BC: 82, "BC(W)": 74, SC: 61, "SC(W)": 35 }
 } as const;
+
+export const ORG_UNIT_KINDS = ["committee", "unit"] as const;
+export const ORG_UNIT_LEVELS = [
+  "assembly_constituency",
+  "mandal",
+  "gram_panchayat",
+  "urban_local_body",
+  "ward"
+] as const;
+export const ORG_GEO_TYPES = [
+  "assembly_constituency",
+  "mandal",
+  "gram_panchayat",
+  "urban_local_body",
+  "rural_ward",
+  "urban_ward"
+] as const;
+export const ORG_APPOINTMENT_STATUSES = ["scheduled", "active", "ended", "resigned", "cancelled"] as const;
+export const ORG_IMPORT_KINDS = ["units", "posts", "appointments"] as const;

@@ -20,6 +20,8 @@
     "test:ui-voters": "node scripts/voters-ui-journey.mjs",
     "test:ui-integrity": "node scripts/integrity-ui-journey.mjs",
     "test:ui-reservations": "node scripts/reservations-ui-journey.mjs",
+    "test:ui-dashboards": "node scripts/dashboards-ui-journey.mjs",
+    "test:ui-org-posts": "node scripts/org-posts-ui-journey.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "node scripts/run-tests.mjs",
     "test:watch": "vitest",

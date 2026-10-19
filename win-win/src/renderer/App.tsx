@@ -11,6 +11,7 @@ import type {
 } from "@shared/types";
 import { BackupPage } from "./pages/BackupPage";
 import { CoveragePage } from "./pages/CoveragePage";
+import { AreaDashboardPage } from "./pages/AreaDashboardPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ElectionsPage } from "./pages/ElectionsPage";
 import { RuralPage } from "./pages/RuralPage";
@@ -21,6 +22,7 @@ import { VotersPage } from "./pages/VotersPage";
 import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
 import { ReservationsPage } from "./pages/ReservationsPage";
+import { OrgPostsPage } from "./pages/OrgPostsPage";
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return `nav-link${isActive ? " active" : ""}`;
@@ -156,6 +158,9 @@ export function App(): JSX.Element {
           <NavLink data-testid="nav-reservations" className={navClass} to="/reservations">
             Seat Reservations
           </NavLink>
+          <NavLink data-testid="nav-org-posts" className={navClass} to="/org-posts">
+            Organization Posts
+          </NavLink>
           <NavLink end data-testid="nav-backup" className={navClass} to="/backup">
             {t(locale, "backup")}
           </NavLink>
@@ -194,6 +199,9 @@ export function App(): JSX.Element {
         ) : null}
         <Routes>
           <Route path="/" element={<DashboardPage model={model} />} />
+          <Route path="/areas/mandals/:id" element={<AreaDashboardPage model={model} level="mandal" />} />
+          <Route path="/areas/gps/:id" element={<AreaDashboardPage model={model} level="gram_panchayat" />} />
+          <Route path="/areas/ulbs/:id" element={<AreaDashboardPage model={model} level="urban_local_body" />} />
           <Route path="/elections" element={<ElectionsPage model={model} />} />
           <Route path="/rural/*" element={<RuralPage model={model} />} />
           <Route path="/urban/*" element={<UrbanPage model={model} />} />
@@ -203,6 +211,7 @@ export function App(): JSX.Element {
           <Route path="/import" element={<ImportPage model={model} />} />
           <Route path="/coverage" element={<CoveragePage model={model} />} />
           <Route path="/reservations/*" element={<ReservationsPage model={model} />} />
+          <Route path="/org-posts/*" element={<OrgPostsPage model={model} />} />
           <Route path="/backup" element={<BackupPage model={model} />} />
           <Route path="/settings" element={<SettingsPage model={model} />} />
         </Routes>

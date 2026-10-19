@@ -25,3 +25,7 @@ Adds `ward_assignment_history.verification_source` and edition-scoped indexes. E
 ## v6 — seat reservations
 
 `reservation_notifications`, `reservation_import_batches`, `seat_reservations`, `reservation_review_history`. Geography and voter tables are unchanged. Reservation categories describe seats only.
+
+## v7 — organization posts
+
+`organizations`, `organization_wings`, `organization_units`, `organization_unit_geo`, `organization_posts`, `organization_appointments`, `organization_appointment_history`, `organization_import_batches`. Voluntary organizational register, separate from public appointments, elected seats and seat reservations. No official titles or sanctioned counts are seeded.

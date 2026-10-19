@@ -20,7 +20,12 @@ import {
   ISSUE_CATEGORIES,
   VERIFICATION_STATUSES,
   DUPLICATE_PAIR_STATUSES,
-  VOTER_EXPORT_FIELDS
+  VOTER_EXPORT_FIELDS,
+  ORG_UNIT_KINDS,
+  ORG_UNIT_LEVELS,
+  ORG_GEO_TYPES,
+  ORG_APPOINTMENT_STATUSES,
+  ORG_IMPORT_KINDS
 } from "@shared/constants";
 import { IpcChannel } from "@shared/ipc";
 import { toErrorPayload, AppError } from "../errors";
@@ -29,6 +34,7 @@ import { listAudit } from "../services/audit";
 import { createBackupWithDialog, restoreBackupWithDialog, type BackupDialogs } from "../services/backup";
 import { deleteCoverage, listCoverage, resolveScope, setCoverage } from "../services/coverage";
 import { dashboardAttention, dashboardCounts } from "../services/dashboard";
+import { geoDashboard } from "../services/geo-dashboard";
 import { loadDemoData } from "../services/demo";
 import { archiveElection, createElection, getElection, listElections, updateElection } from "../services/elections";
 import {
@@ -132,6 +138,39 @@ import {
   supersedeReservationNotification,
   verifyReservationNotification
 } from "../services/reservations";
+import {
+  appointmentHistory,
+  archiveOrganization,
+  cancelOrgImport,
+  commitOrgImport,
+  createAppointment,
+  createOrganization,
+  createPost,
+  createUnit,
+  createWing,
+  exportOrgCsv,
+  exportOrgXlsx,
+  listAppointmentHistory,
+  listAppointments,
+  listCapacities,
+  listOrganizations,
+  listPosts,
+  listUnits,
+  listWings,
+  mapOrgImport,
+  openOrgImport,
+  orgOverview,
+  orgTemplateCsv,
+  orgTemplateXlsx,
+  reportingTree,
+  setUnitGeo,
+  upcomingExpiry,
+  updateAppointment,
+  updateOrganization,
+  updatePost,
+  updateUnit
+} from "../services/org-posts";
+import type { OrgExportInput } from "@shared/types";
 import {
   archiveEdition,
   archiveVoter,
@@ -258,6 +297,20 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     const { constituencyId } = input as { constituencyId: string };
     return dashboardAttention(db(), constituencyId);
   });
+  handle(
+    IpcChannel.geoDashboard,
+    z.object({
+      constituencyId: z.string().min(1),
+      boundaryVersionId: z.string().min(1),
+      level: z.enum(["assembly", "mandal", "gram_panchayat", "urban_local_body", "rural_ward", "urban_ward"]),
+      unitId: z.string().optional(),
+      electionId: z.string().optional(),
+      notificationId: z.string().optional(),
+      rollEditionId: z.string().optional(),
+      includeArchived: z.boolean().optional()
+    }),
+    (input) => geoDashboard(db(), input as Parameters<typeof geoDashboard>[1])
+  );
 
   handle(IpcChannel.boundaryList, z.object({}), () => listBoundaries(db()));
   handle(
@@ -1156,5 +1209,275 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       wardId: z.string().optional()
     }),
     (input) => seatsForUnit(db(), input as Parameters<typeof seatsForUnit>[1])
+  );
+
+  const orgVerification = z.enum(VERIFICATION_STATUSES);
+  handle(IpcChannel.orgList, z.object({ includeArchived: z.boolean().optional() }), (input) =>
+    listOrganizations(db(), Boolean((input as { includeArchived?: boolean }).includeArchived))
+  );
+  handle(
+    IpcChannel.orgCreate,
+    z.object({
+      name: z.string().min(1),
+      nameTe: z.string().optional(),
+      notes: z.string().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional()
+    }),
+    (input) => createOrganization(db(), input as Parameters<typeof createOrganization>[1])
+  );
+  handle(
+    IpcChannel.orgUpdate,
+    z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      nameTe: z.string().optional(),
+      notes: z.string().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      archived: z.boolean().optional()
+    }),
+    (input) => updateOrganization(db(), input as Parameters<typeof updateOrganization>[1])
+  );
+  handle(IpcChannel.orgArchive, idSchema, (input) => archiveOrganization(db(), (input as { id: string }).id));
+  handle(IpcChannel.orgWingList, z.object({ organizationId: z.string().min(1) }), (input) =>
+    listWings(db(), (input as { organizationId: string }).organizationId)
+  );
+  handle(
+    IpcChannel.orgWingCreate,
+    z.object({ organizationId: z.string().min(1), name: z.string().min(1), notes: z.string().optional() }),
+    (input) => createWing(db(), input as Parameters<typeof createWing>[1])
+  );
+  handle(
+    IpcChannel.orgUnitList,
+    z.object({ organizationId: z.string().min(1), includeArchived: z.boolean().optional() }),
+    (input) => listUnits(db(), input as Parameters<typeof listUnits>[1])
+  );
+  handle(
+    IpcChannel.orgUnitCreate,
+    z.object({
+      organizationId: z.string().min(1),
+      name: z.string().min(1),
+      unitKind: z.enum(ORG_UNIT_KINDS),
+      level: z.enum(ORG_UNIT_LEVELS),
+      wingId: z.string().nullable().optional(),
+      parentUnitId: z.string().nullable().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      geo: z
+        .array(
+          z.object({
+            geoType: z.enum(ORG_GEO_TYPES),
+            geoId: z.string().min(1),
+            notes: z.string().optional()
+          })
+        )
+        .optional()
+    }),
+    (input) => createUnit(db(), input as Parameters<typeof createUnit>[1])
+  );
+  handle(
+    IpcChannel.orgUnitUpdate,
+    z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      unitKind: z.enum(ORG_UNIT_KINDS),
+      level: z.enum(ORG_UNIT_LEVELS),
+      wingId: z.string().nullable().optional(),
+      parentUnitId: z.string().nullable().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      archived: z.boolean().optional()
+    }),
+    (input) => updateUnit(db(), input as Parameters<typeof updateUnit>[1])
+  );
+  handle(
+    IpcChannel.orgUnitSetGeo,
+    z.object({
+      unitId: z.string().min(1),
+      links: z.array(
+        z.object({
+          geoType: z.enum(ORG_GEO_TYPES),
+          geoId: z.string().min(1),
+          notes: z.string().optional()
+        })
+      )
+    }),
+    (input) => setUnitGeo(db(), input as Parameters<typeof setUnitGeo>[1])
+  );
+  handle(
+    IpcChannel.orgPostList,
+    z.object({
+      organizationId: z.string().min(1),
+      unitId: z.string().optional(),
+      includeArchived: z.boolean().optional()
+    }),
+    (input) => listPosts(db(), input as Parameters<typeof listPosts>[1])
+  );
+  handle(
+    IpcChannel.orgPostCreate,
+    z.object({
+      organizationId: z.string().min(1),
+      unitId: z.string().min(1),
+      title: z.string().min(1),
+      wingId: z.string().nullable().optional(),
+      authorizedPositions: z.number().int().nonnegative().nullable().optional(),
+      parentPostId: z.string().nullable().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional()
+    }),
+    (input) => createPost(db(), input as Parameters<typeof createPost>[1])
+  );
+  handle(
+    IpcChannel.orgPostUpdate,
+    z.object({
+      id: z.string().min(1),
+      title: z.string().min(1),
+      unitId: z.string().min(1),
+      wingId: z.string().nullable().optional(),
+      authorizedPositions: z.number().int().nonnegative().nullable().optional(),
+      parentPostId: z.string().nullable().optional(),
+      sourceReference: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      archived: z.boolean().optional()
+    }),
+    (input) => updatePost(db(), input as Parameters<typeof updatePost>[1])
+  );
+  handle(IpcChannel.orgPostTree, z.object({ organizationId: z.string().min(1) }), (input) =>
+    reportingTree(db(), (input as { organizationId: string }).organizationId)
+  );
+  handle(
+    IpcChannel.orgAppointmentList,
+    z.object({
+      organizationId: z.string().min(1),
+      postId: z.string().optional(),
+      coveringOnly: z.boolean().optional(),
+      includeEnded: z.boolean().optional()
+    }),
+    (input) => listAppointments(db(), input as Parameters<typeof listAppointments>[1])
+  );
+  handle(
+    IpcChannel.orgAppointmentCreate,
+    z.object({
+      postId: z.string().min(1),
+      officeHolderName: z.string().min(1),
+      membershipReference: z.string().optional(),
+      appointmentReference: z.string().optional(),
+      appointmentDate: z.string().nullable().optional(),
+      startDate: z.string().min(1),
+      endDate: z.string().nullable().optional(),
+      status: z.enum(ORG_APPOINTMENT_STATUSES),
+      consentSource: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      verificationNotes: z.string().optional(),
+      allowOverlap: z.boolean().optional()
+    }),
+    (input) => createAppointment(db(), input as Parameters<typeof createAppointment>[1])
+  );
+  handle(
+    IpcChannel.orgAppointmentUpdate,
+    z.object({
+      id: z.string().min(1),
+      membershipReference: z.string().optional(),
+      appointmentReference: z.string().optional(),
+      appointmentDate: z.string().nullable().optional(),
+      startDate: z.string().min(1),
+      endDate: z.string().nullable().optional(),
+      status: z.enum(ORG_APPOINTMENT_STATUSES),
+      consentSource: z.string().optional(),
+      verificationStatus: orgVerification.optional(),
+      verificationNotes: z.string().optional(),
+      allowOverlap: z.boolean().optional()
+    }),
+    (input) => updateAppointment(db(), input as Parameters<typeof updateAppointment>[1])
+  );
+  handle(IpcChannel.orgAppointmentHistory, z.object({ appointmentId: z.string().min(1) }), (input) =>
+    appointmentHistory(db(), (input as { appointmentId: string }).appointmentId)
+  );
+  handle(IpcChannel.orgHistory, z.object({ organizationId: z.string().min(1) }), (input) =>
+    listAppointmentHistory(db(), (input as { organizationId: string }).organizationId)
+  );
+  handle(IpcChannel.orgOverview, z.object({ organizationId: z.string().optional() }), (input) =>
+    orgOverview(db(), (input as { organizationId?: string }).organizationId)
+  );
+  handle(IpcChannel.orgVacancies, z.object({ organizationId: z.string().min(1) }), (input) =>
+    listCapacities(db(), (input as { organizationId: string }).organizationId)
+  );
+  handle(
+    IpcChannel.orgExpiry,
+    z.object({ organizationId: z.string().min(1), windowDays: z.union([z.literal(30), z.literal(60), z.literal(90)]) }),
+    (input) => upcomingExpiry(db(), (input as { organizationId: string }).organizationId, (input as { windowDays: 30 | 60 | 90 }).windowDays)
+  );
+  handle(
+    IpcChannel.orgImportOpen,
+    z.object({ organizationId: z.string().min(1), kind: z.enum(ORG_IMPORT_KINDS) }),
+    async (input) => {
+      const payload = input as { organizationId: string; kind: (typeof ORG_IMPORT_KINDS)[number] };
+      const automated = !app.isPackaged ? process.env.WINWIN_TEST_ORG_IMPORT_FILE : undefined;
+      let filePath: string | null = automated ?? null;
+      if (!filePath) {
+        const win = getWindow();
+        const options = {
+          filters: [
+            { name: "CSV or Excel", extensions: ["csv", "xlsx"] }
+          ],
+          properties: ["openFile" as const]
+        };
+        const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+        filePath = result.canceled ? null : result.filePaths[0] ?? null;
+      }
+      if (!filePath) return { cancelled: true as const };
+      return openOrgImport(db(), { ...payload, filePath });
+    }
+  );
+  handle(
+    IpcChannel.orgImportMap,
+    z.object({ sessionId: z.string().min(1), mapping: z.record(z.string(), z.string().nullable()) }),
+    (input) => mapOrgImport(db(), input as Parameters<typeof mapOrgImport>[1])
+  );
+  handle(
+    IpcChannel.orgImportCommit,
+    z.object({ sessionId: z.string().min(1), confirmOverlaps: z.boolean().optional() }),
+    (input) => commitOrgImport(db(), input as Parameters<typeof commitOrgImport>[1])
+  );
+  handle(IpcChannel.orgImportCancel, z.object({ sessionId: z.string().min(1) }), (input) =>
+    cancelOrgImport((input as { sessionId: string }).sessionId)
+  );
+  handle(
+    IpcChannel.orgImportTemplate,
+    z.object({ kind: z.enum(ORG_IMPORT_KINDS), format: z.enum(["csv", "xlsx"]) }),
+    async (input) => {
+      const payload = input as { kind: (typeof ORG_IMPORT_KINDS)[number]; format: "csv" | "xlsx" };
+      const dest = await savePath(
+        "template",
+        payload.format === "xlsx" ? `org-${payload.kind}.xlsx` : `org-${payload.kind}.csv`,
+        payload.format === "xlsx" ? [{ name: "Excel", extensions: ["xlsx"] }] : [{ name: "CSV", extensions: ["csv"] }]
+      );
+      if (!dest) return { cancelled: true };
+      if (payload.format === "xlsx") fs.writeFileSync(dest, await orgTemplateXlsx(payload.kind));
+      else fs.writeFileSync(dest, orgTemplateCsv(payload.kind), "utf8");
+      return { cancelled: false, path: dest };
+    }
+  );
+  handle(
+    IpcChannel.orgExport,
+    z.object({
+      organizationId: z.string().min(1),
+      kind: z.enum(ORG_IMPORT_KINDS),
+      format: z.enum(["csv", "xlsx"]),
+      fields: z.array(z.string())
+    }),
+    async (input) => {
+      const payload = input as OrgExportInput;
+      const dest = await savePath(
+        "export",
+        payload.format === "xlsx" ? `org-${payload.kind}.xlsx` : `org-${payload.kind}.csv`,
+        payload.format === "xlsx" ? [{ name: "Excel", extensions: ["xlsx"] }] : [{ name: "CSV", extensions: ["csv"] }]
+      );
+      if (!dest) return { cancelled: true };
+      if (payload.format === "xlsx") fs.writeFileSync(dest, await exportOrgXlsx(db(), payload));
+      else fs.writeFileSync(dest, exportOrgCsv(db(), payload), "utf8");
+      return { cancelled: false, path: dest };
+    }
   );
 }
