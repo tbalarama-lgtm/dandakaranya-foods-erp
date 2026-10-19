@@ -20,6 +20,7 @@ import type {
   WardOverview
 } from "@shared/types";
 import type { AppModel } from "../App";
+import { GeoDashboardView } from "./GeoDashboardView";
 import { ReservationUnitCard } from "./ReservationsPage";
 import { Dialog } from "../Dialog";
 import {
@@ -200,6 +201,12 @@ function OverviewTab({
 
   return (
     <div className="grid">
+      <GeoDashboardView
+        model={model}
+        level={detail.ward.classification === "rural" ? "rural_ward" : "urban_ward"}
+        unitId={ctx.wardId}
+        embedded
+      />
       <div className="grid stats">
         <article className="card stat" data-testid="overview-contacts">
           <span>Active contacts</span>

@@ -124,31 +124,39 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
         <article className="card">
           <h3>Mandals</h3>
           {mandals.map((m) => (
-            <button
-              key={m.id}
-              className={`btn ${mandalId === m.id ? "" : "secondary"}`}
-              type="button"
-              data-testid={`mandal-${m.id}`}
-              data-name={m.name}
-              onClick={() => setMandalId(m.id)}
-            >
-              {m.name} {m.nameTe}
-            </button>
+            <div className="row" key={m.id}>
+              <button
+                className={`btn ${mandalId === m.id ? "" : "secondary"}`}
+                type="button"
+                data-testid={`mandal-${m.id}`}
+                data-name={m.name}
+                onClick={() => setMandalId(m.id)}
+              >
+                {m.name} {m.nameTe}
+              </button>
+              <Link className="btn secondary" to={`/areas/mandals/${m.id}`} data-testid={`mandal-dashboard-${m.id}`}>
+                Dashboard
+              </Link>
+            </div>
           ))}
           {mandals.length === 0 ? <p className="empty">No mandals in this constituency coverage yet.</p> : null}
         </article>
         <article className="card">
           <h3>Gram Panchayats</h3>
           {gps.map((gp) => (
-            <button
-              key={gp.id}
-              className={`btn ${gpId === gp.id ? "" : "secondary"}`}
-              type="button"
-              data-name={gp.name}
-              onClick={() => setGpId(gp.id)}
-            >
-              {gp.name}
-            </button>
+            <div className="row" key={gp.id}>
+              <button
+                className={`btn ${gpId === gp.id ? "" : "secondary"}`}
+                type="button"
+                data-name={gp.name}
+                onClick={() => setGpId(gp.id)}
+              >
+                {gp.name}
+              </button>
+              <Link className="btn secondary" to={`/areas/gps/${gp.id}`} data-testid={`gp-dashboard-${gp.id}`}>
+                Dashboard
+              </Link>
+            </div>
           ))}
         </article>
       </div>

@@ -347,6 +347,106 @@ export interface DashboardAttention {
   recentActivity: ActivityItem[];
 }
 
+export type GeoDashboardLevel =
+  | "assembly"
+  | "mandal"
+  | "gram_panchayat"
+  | "urban_local_body"
+  | "rural_ward"
+  | "urban_ward";
+
+export interface GeoDashboardQuery {
+  constituencyId: string;
+  boundaryVersionId: string;
+  level: GeoDashboardLevel;
+  unitId?: string;
+  electionId?: string;
+  notificationId?: string;
+  rollEditionId?: string;
+  includeArchived?: boolean;
+}
+
+export interface GeoMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  href: string;
+  hint: string;
+  missing: boolean;
+}
+
+export interface GeoDirectoryColumn {
+  key: string;
+  label: string;
+}
+
+export interface GeoDirectoryRow {
+  id: string;
+  name: string;
+  nameTe: string;
+  href: string;
+  subtitle?: string;
+  values: Record<string, string | number | null>;
+}
+
+export interface GeoDirectory {
+  key: string;
+  title: string;
+  searchPlaceholder: string;
+  columns: GeoDirectoryColumn[];
+  rows: GeoDirectoryRow[];
+}
+
+export interface GeoReviewItem {
+  key: string;
+  label: string;
+  count: number;
+  href: string;
+}
+
+export interface GeoReservationSnapshot {
+  applicable: boolean;
+  message: string;
+  sarpanchCode: string | null;
+  sarpanchWomen: boolean;
+  sarpanchReview: string | null;
+  wardMemberByCode: Record<string, number>;
+  awaitingReview: number;
+  notificationName: string | null;
+}
+
+export interface GeoTeamMember {
+  id: string;
+  name: string;
+  role: string;
+  href: string;
+}
+
+export interface GeoDashboard {
+  level: GeoDashboardLevel;
+  unitId: string;
+  name: string;
+  nameTe: string;
+  classification: string;
+  breadcrumb: Array<{ label: string; href: string }>;
+  boundaryName: string;
+  electionName: string | null;
+  rollEditionName: string | null;
+  rollEditionHint: string | null;
+  administrativeMandalName: string | null;
+  parentName: string | null;
+  metrics: GeoMetric[];
+  directories: GeoDirectory[];
+  overdueTasks: DashboardWorkItem[];
+  unresolvedIssues: DashboardWorkItem[];
+  recentActivity: ActivityItem[];
+  reviewItems: GeoReviewItem[];
+  shortcuts: Array<{ label: string; href: string }>;
+  reservation: GeoReservationSnapshot | null;
+  team: GeoTeamMember[];
+  villages: Array<{ id: string; name: string; nameTe: string }>;
+}
+
 export interface WardOverview {
   activeContacts: number;
   activeTeamAssignments: number;

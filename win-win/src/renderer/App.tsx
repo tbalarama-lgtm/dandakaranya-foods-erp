@@ -11,6 +11,7 @@ import type {
 } from "@shared/types";
 import { BackupPage } from "./pages/BackupPage";
 import { CoveragePage } from "./pages/CoveragePage";
+import { AreaDashboardPage } from "./pages/AreaDashboardPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ElectionsPage } from "./pages/ElectionsPage";
 import { RuralPage } from "./pages/RuralPage";
@@ -194,6 +195,9 @@ export function App(): JSX.Element {
         ) : null}
         <Routes>
           <Route path="/" element={<DashboardPage model={model} />} />
+          <Route path="/areas/mandals/:id" element={<AreaDashboardPage model={model} level="mandal" />} />
+          <Route path="/areas/gps/:id" element={<AreaDashboardPage model={model} level="gram_panchayat" />} />
+          <Route path="/areas/ulbs/:id" element={<AreaDashboardPage model={model} level="urban_local_body" />} />
           <Route path="/elections" element={<ElectionsPage model={model} />} />
           <Route path="/rural/*" element={<RuralPage model={model} />} />
           <Route path="/urban/*" element={<UrbanPage model={model} />} />

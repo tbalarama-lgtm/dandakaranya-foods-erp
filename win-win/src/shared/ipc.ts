@@ -5,6 +5,7 @@ export const IpcChannel = {
   settingsUpdate: "winwin:settingsUpdate",
   dashboardCounts: "winwin:dashboardCounts",
   dashboardAttention: "winwin:dashboardAttention",
+  geoDashboard: "winwin:geoDashboard",
   boundaryList: "winwin:boundaryList",
   boundaryCreate: "winwin:boundaryCreate",
   boundaryUpdate: "winwin:boundaryUpdate",
@@ -129,6 +130,7 @@ export interface WinWinApi {
     boundaryVersionId: string;
   }) => Promise<import("./types").DashboardCounts>;
   dashboardAttention: (input: { constituencyId: string }) => Promise<import("./types").DashboardAttention>;
+  geoDashboard: (input: import("./types").GeoDashboardQuery) => Promise<import("./types").GeoDashboard>;
   boundaryList: () => Promise<import("./types").BoundaryVersion[]>;
   boundaryCreate: (input: {
     name: string;

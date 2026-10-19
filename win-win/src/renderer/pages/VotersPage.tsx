@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { VOTER_EXPORT_FIELDS, VOTER_PERSONAL_EXPORT_FIELDS, type VoterExportField } from "@shared/constants";
 import type {
   DuplicatePair,
@@ -27,15 +27,20 @@ const EMPTY_COUNTS: RollEditionCounts = {
 };
 
 export function VotersPage({ model }: { model: AppModel }): JSX.Element {
+  const [params] = useSearchParams();
   const [editions, setEditions] = useState<RollEdition[]>([]);
-  const [editionId, setEditionId] = useState("");
+  const [editionId, setEditionId] = useState(params.get("edition") ?? "");
   const [counts, setCounts] = useState<RollEditionCounts | null>(null);
   const [items, setItems] = useState<VoterListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
-  const [verification, setVerification] = useState("");
-  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">("all");
+  const [verification, setVerification] = useState(params.get("verification") ?? "");
+  const [assignment, setAssignment] = useState<"all" | "assigned" | "unassigned">(() => {
+    const value = params.get("assignment");
+    return value === "unassigned" || value === "assigned" ? value : "all";
+  });
+  const [wardId] = useState(params.get("ward") ?? "");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [wards, setWards] = useState<WardListItem[]>([]);
@@ -79,6 +84,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
     () => ({
       constituencyId: model.constituencyId,
       rollEditionId: editionId || null,
+      wardId: wardId || null,
       query,
       verificationStatus: verification as "" | "unverified" | "verified" | "needs_review",
       unassignedOnly: assignment === "unassigned",
@@ -87,7 +93,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
       page,
       pageSize: 25
     }),
-    [model.constituencyId, editionId, query, verification, assignment, includeArchived, page]
+    [model.constituencyId, editionId, wardId, query, verification, assignment, includeArchived, page]
   );
 
   async function loadEditions(): Promise<void> {

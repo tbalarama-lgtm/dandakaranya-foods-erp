@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { CoverageKind, UrbanBodyType, UrbanLocalBody, WardListItem } from "@shared/types";
 import type { AppModel } from "../App";
 
@@ -100,15 +100,19 @@ export function UrbanPage({ model }: { model: AppModel }): JSX.Element {
       <p className="breadcrumb">Urban local body → Wards. Mandal association is optional and not a navigation level.</p>
       <div className="row">
         {bodies.map((body) => (
-          <button
-            key={body.id}
-            className={`btn ${ulbId === body.id ? "" : "secondary"}`}
-            type="button"
-            data-name={body.name}
-            onClick={() => setUlbId(body.id)}
-          >
-            {body.name} ({body.bodyType.replaceAll("_", " ")})
-          </button>
+          <div className="row" key={body.id}>
+            <button
+              className={`btn ${ulbId === body.id ? "" : "secondary"}`}
+              type="button"
+              data-name={body.name}
+              onClick={() => setUlbId(body.id)}
+            >
+              {body.name} ({body.bodyType.replaceAll("_", " ")})
+            </button>
+            <Link className="btn secondary" to={`/areas/ulbs/${body.id}`} data-testid={`ulb-dashboard-${body.id}`}>
+              Dashboard
+            </Link>
+          </div>
         ))}
       </div>
       {bodies.length === 0 ? <p className="empty">No urban local bodies in this constituency coverage yet.</p> : null}

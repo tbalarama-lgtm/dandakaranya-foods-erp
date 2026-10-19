@@ -29,6 +29,7 @@ import { listAudit } from "../services/audit";
 import { createBackupWithDialog, restoreBackupWithDialog, type BackupDialogs } from "../services/backup";
 import { deleteCoverage, listCoverage, resolveScope, setCoverage } from "../services/coverage";
 import { dashboardAttention, dashboardCounts } from "../services/dashboard";
+import { geoDashboard } from "../services/geo-dashboard";
 import { loadDemoData } from "../services/demo";
 import { archiveElection, createElection, getElection, listElections, updateElection } from "../services/elections";
 import {
@@ -258,6 +259,20 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
     const { constituencyId } = input as { constituencyId: string };
     return dashboardAttention(db(), constituencyId);
   });
+  handle(
+    IpcChannel.geoDashboard,
+    z.object({
+      constituencyId: z.string().min(1),
+      boundaryVersionId: z.string().min(1),
+      level: z.enum(["assembly", "mandal", "gram_panchayat", "urban_local_body", "rural_ward", "urban_ward"]),
+      unitId: z.string().optional(),
+      electionId: z.string().optional(),
+      notificationId: z.string().optional(),
+      rollEditionId: z.string().optional(),
+      includeArchived: z.boolean().optional()
+    }),
+    (input) => geoDashboard(db(), input as Parameters<typeof geoDashboard>[1])
+  );
 
   handle(IpcChannel.boundaryList, z.object({}), () => listBoundaries(db()));
   handle(
