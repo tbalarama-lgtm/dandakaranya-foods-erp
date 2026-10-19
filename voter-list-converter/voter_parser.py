@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
-import pandas as pd
 import pdfplumber
+from openpyxl import Workbook
+from openpyxl.styles import Font
 
 try:
     from pdfminer.pdfdocument import PDFPasswordIncorrect
@@ -49,6 +51,17 @@ RELATION_RE = re.compile(
 HOUSE_RE = re.compile(
     r"(?im)^House\s*(?:Number|No\.?)\s*[:\-]\s*(?P<house>.+?)\s*$"
 )
+
+
+@dataclass
+class ExtractResult:
+    rows: list[dict[str, object]]
+    output_path: str
+    source_path: str
+    pages_scanned: int
+
+    def __len__(self) -> int:
+        return len(self.rows)
 
 
 class VoterParseError(Exception):
@@ -264,16 +277,32 @@ def extract_voter_data(
             "No extractable text was found. Image-scanned rolls need OCR and are not converted by this local text extractor."
         )
 
-    frame = pd.DataFrame(rows, columns=COLUMNS)
-    if not frame.empty:
-        frame["Age"] = pd.to_numeric(frame["Age"], errors="coerce").astype("Int64")
-        for column in COLUMNS:
-            if column in {"Age", "Source Page"}:
-                continue
-            frame[column] = frame[column].map(clean_text)
-
     try:
-        frame.to_excel(destination, index=False, engine="openpyxl")
+        write_excel(rows, destination)
+    except PermissionError as exc:
+        raise OutputPermissionError(
+            f"Could not write Excel to {destination}. Check folder permissions and that the file is not open."
+        ) from exc
+    return ExtractResult(
+        rows=rows,
+        output_path=str(destination),
+        source_path=str(source),
+        pages_scanned=searchable_pages,
+    )
+
+
+def write_excel(rows: list[dict[str, object]], destination: Path) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "voters"
+    header_font = Font(bold=True)
+    sheet.append(list(COLUMNS))
+    for cell in sheet[1]:
+        cell.font = header_font
+    for row in rows:
+        sheet.append([row.get(column, "") for column in COLUMNS])
+    try:
+        workbook.save(destination)
     except PermissionError as exc:
         raise OutputPermissionError(
             f"Could not write Excel to {destination}. Check folder permissions and that the file is not open."
@@ -282,11 +311,6 @@ def extract_voter_data(
         raise OutputPermissionError(
             f"Could not write Excel to {destination}: {exc}"
         ) from exc
-
-    frame.attrs["output_path"] = str(destination)
-    frame.attrs["source_path"] = str(source)
-    frame.attrs["pages_scanned"] = searchable_pages
-    return frame
 
 
 def iter_column_headers() -> Iterable[str]:

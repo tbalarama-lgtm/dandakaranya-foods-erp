@@ -38,7 +38,15 @@ if not exist ".venv\Scripts\python.exe" (
 
 call .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+echo Installing packages from ready-made Windows wheels (no Visual Studio)...
+python -m pip install --only-binary :all: -r requirements.txt
+if errorlevel 1 (
+  echo.
+  echo Package install failed.
+  echo Close this window, delete the .venv folder in this directory, then double-click run.bat again.
+  pause
+  exit /b 1
+)
 echo.
 echo Starting Secure Local Voter Roll Converter...
 python gui_app.py

@@ -209,12 +209,11 @@ class VoterRollConverterApp:
             self._post(("progress", current, total))
 
         try:
-            frame = extract_voter_data(pdf_path, progress_callback=on_progress, output_path=output_path)
+            result = extract_voter_data(pdf_path, progress_callback=on_progress, output_path=output_path)
             if self.stop_event.is_set():
                 self._post(("cancelled",))
                 return
-            destination = Path(frame.attrs.get("output_path", output_path))
-            self._post(("done", int(len(frame.index)), str(destination)))
+            self._post(("done", len(result), result.output_path))
         except VoterParseError as exc:
             self._post(("error", str(exc)))
         except Exception as exc:  # pragma: no cover - last-resort UI guard

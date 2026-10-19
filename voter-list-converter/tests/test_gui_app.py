@@ -4,10 +4,9 @@ import threading
 from pathlib import Path
 from unittest.mock import patch
 
-import pandas as pd
 import pytest
 
-from voter_parser import NonSearchablePdfError
+from voter_parser import ExtractResult, NonSearchablePdfError
 
 tkinter = pytest.importorskip("tkinter")
 
@@ -45,15 +44,14 @@ def test_background_success_updates_progress_and_log(tmp_path: Path) -> None:
 
     app = VoterRollConverterApp(root)
     output = tmp_path / "out.xlsx"
-    frame = pd.DataFrame([{"Serial No.": "1"}])
-    frame.attrs["output_path"] = str(output)
+    result = ExtractResult(rows=[{"Serial No.": "1"}], output_path=str(output), source_path="roll.pdf", pages_scanned=1)
 
     def fake_extract(pdf_path, progress_callback=None, output_path=None):
         if progress_callback:
             progress_callback(0, 2)
             progress_callback(1, 2)
             progress_callback(2, 2)
-        return frame
+        return result
 
     with patch("gui_app.extract_voter_data", side_effect=fake_extract), patch("gui_app.messagebox.showinfo"):
         app.pdf_var.set(str(tmp_path / "roll.pdf"))
@@ -119,7 +117,7 @@ def test_close_signals_background_stop() -> None:
     def hang(*args, **kwargs):
         started.set()
         release.wait(timeout=2)
-        return pd.DataFrame()
+        return ExtractResult(rows=[], output_path="", source_path="", pages_scanned=0)
 
     app.worker = threading.Thread(target=hang, daemon=True)
     app.worker.start()

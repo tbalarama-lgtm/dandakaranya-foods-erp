@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pandas as pd
 import pytest
+from openpyxl import load_workbook
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -15,6 +15,7 @@ from voter_parser import (
     PasswordProtectedPdfError,
     extract_voter_data,
     parse_page_text,
+    write_excel,
 )
 
 
@@ -84,16 +85,17 @@ def test_extract_voter_data_writes_excel_and_reports_progress(tmp_path: Path) ->
     pdf_path = tmp_path / "roll.pdf"
     write_roll_pdf(pdf_path, [SAMPLE_PAGE, "Street Name : 2-MARKET ROAD\n\n3 ZOW9999999\nName : GOPI\nFather's Name : RAO\nHouse Number : 1\nAge : 60 Gender: Male\n"])
     seen: list[tuple[int, int]] = []
-    frame = extract_voter_data(pdf_path, progress_callback=lambda cur, tot: seen.append((cur, tot)))
+    result = extract_voter_data(pdf_path, progress_callback=lambda cur, tot: seen.append((cur, tot)))
     assert seen[0] == (0, 2)
     assert seen[-1] == (2, 2)
-    assert len(frame) == 3
-    assert frame.iloc[2]["Section No and Name"] == "2-MARKET ROAD"
-    output = Path(frame.attrs["output_path"])
+    assert len(result) == 3
+    assert result.rows[2]["Section No and Name"] == "2-MARKET ROAD"
+    output = Path(result.output_path)
     assert output.suffix == ".xlsx"
-    loaded = pd.read_excel(output, engine="openpyxl")
-    assert list(loaded.columns)[:3] == ["Serial No.", "EPIC ID", "Voter Name"]
-    assert int(loaded.iloc[0]["Age"]) == 42
+    loaded = load_workbook(output)
+    sheet = loaded.active
+    assert [cell.value for cell in sheet[1][:3]] == ["Serial No.", "EPIC ID", "Voter Name"]
+    assert int(sheet[2][6].value) == 42
 
 
 def test_missing_file_is_flagged(tmp_path: Path) -> None:
@@ -121,6 +123,6 @@ def test_output_permission_is_flagged(tmp_path: Path) -> None:
     pdf_path = tmp_path / "roll.pdf"
     write_roll_pdf(pdf_path, [SAMPLE_PAGE])
     blocked = tmp_path / "missing-dir" / "out.xlsx"
-    with patch("pandas.DataFrame.to_excel", side_effect=PermissionError("denied")):
+    with patch("voter_parser.write_excel", side_effect=PermissionError("denied")):
         with pytest.raises(OutputPermissionError):
             extract_voter_data(pdf_path, output_path=blocked)

@@ -5,9 +5,10 @@ Windows
 1. Install Python 3.10+ from https://www.python.org/downloads/
    Tick "Add python.exe to PATH" and leave "tcl/tk and IDLE" enabled.
 2. Unzip so you can see run.bat in this folder.
-3. Double-click run.bat
-4. Browse File -> tests\fixtures\sample-electoral-roll.pdf
-5. Click Start Secure Conversion
+3. If a previous try failed, delete the .venv folder in this directory.
+4. Double-click run.bat
+5. Browse File -> tests\fixtures\sample-electoral-roll.pdf
+6. Click Start Secure Conversion
 
 macOS / Linux
   chmod +x run.sh
