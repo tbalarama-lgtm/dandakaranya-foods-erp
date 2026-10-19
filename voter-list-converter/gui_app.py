@@ -9,6 +9,8 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+import sys
+
 from voter_parser import VoterParseError, extract_voter_data, ocr_backend_name
 
 WINDOW_TITLE = "Secure Local Voter Roll Converter"
@@ -50,10 +52,16 @@ class VoterRollConverterApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self._poll_after_id = self.root.after(80, self._drain_queue)
         backend = ocr_backend_name()
-        if backend == "unavailable":
+        pyver = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if sys.version_info[:2] >= (3, 14):
+            self._append_log(
+                f"Python {pyver} cannot install onnxruntime. Install Python 3.12 from python.org and run run.bat again.",
+                "error",
+            )
+        elif backend == "unavailable":
             self._append_log("OCR not installed. Text PDFs still work. For image rolls: pip install rapidocr onnxruntime", "error")
         else:
-            self._append_log(f"Local OCR ready ({backend}). Image-scanned ECI rolls stay on this computer.", "ok")
+            self._append_log(f"Python {pyver} · local OCR ready ({backend}). Image-scanned ECI rolls stay on this computer.", "ok")
 
     def _build_style(self) -> None:
         style = ttk.Style(self.root)

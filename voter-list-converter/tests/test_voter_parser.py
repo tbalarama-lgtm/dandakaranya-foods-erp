@@ -8,6 +8,7 @@ from openpyxl import load_workbook
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
+from check_python import main as check_python_main
 from voter_parser import (
     CorruptedPdfError,
     NonSearchablePdfError,
@@ -36,6 +37,14 @@ Husband's Name : RAMA RAO
 House Number : 12-3
 Age : 38 Gender: Female
 """
+
+
+def test_check_python_accepts_supported_versions() -> None:
+    import sys
+
+    code = check_python_main()
+    supported = (3, 10) <= sys.version_info[:2] <= (3, 13)
+    assert (code == 0) is supported
 
 
 def test_parse_page_tags_section_and_relation_fields() -> None:

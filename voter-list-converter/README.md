@@ -6,7 +6,7 @@ Python **3.13** needs package `rapidocr` (not `rapidocr-onnxruntime`, which stop
 
 ## Install on your computer
 
-You need **Python 3.10–3.13** with Tkinter (the built-in GUI library).
+You need **64-bit Python 3.12** (3.10–3.13 also work). Python **3.14 and 3.15 cannot** install `onnxruntime`, so image-roll OCR will fail. Windows installer: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
 
 ### 1. Get the folder
 

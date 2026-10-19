@@ -1,23 +1,20 @@
-BUILD 5 - PYTHON 3.13 LOCAL OCR
-================================
+BUILD 6 - INSTALL PYTHON 3.12 FIRST
+===================================
 
-Your screenshot error:
-  No matching distribution found for rapidocr-onnxruntime>=1.4.0
-means Python 3.13 is installed. That old OCR package only supports Python 3.12 and below.
+The last error:
+  No matching distribution found for onnxruntime>=1.17.0 (from versions: none)
+  wheels named cp315
 
-This folder uses the new package names instead:
-  pip install rapidocr onnxruntime
+means Windows Python 3.15 is installed. OCR cannot run on 3.15.
 
-Do NOT delete .venv if pdfplumber / openpyxl / pymupdf already installed.
-Just double-click this new run.bat.
+1. Download Python 3.12 (64-bit) and install it. You can keep 3.15.
+   https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
 
-Windows
-1. Keep Python 3.10–3.13 from https://www.python.org/downloads/
-   Tick "Add python.exe to PATH" and leave "tcl/tk and IDLE" enabled.
-2. Unzip so you can see run.bat in this folder.
-3. Double-click run.bat  (Step 1 = PDF/Excel, Step 2 = OCR)
-4. Browse File -> your ECI roll PDF
-5. Click Start Secure Conversion
+2. On the installer tick:
+   - Add python.exe to PATH
+   - tcl/tk and IDLE
 
-First image-roll conversion can take several minutes (OCR model + 45 pages).
-Nothing is uploaded.
+3. Extract this converter folder. Double-click run.bat.
+   run.bat now chooses py -3.12 automatically.
+
+4. When the dark window opens, pick the ECI PDF and Start Secure Conversion.

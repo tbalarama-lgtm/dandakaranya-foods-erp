@@ -1,2 +1,2 @@
-BUILD 5 - PYTHON 3.13 OCR (rapidocr, not rapidocr-onnxruntime)
-Python 3.13 cannot install rapidocr-onnxruntime 1.4. Use rapidocr + onnxruntime instead.
+BUILD 6 - REQUIRES PYTHON 3.12
+Python 3.15 has no onnxruntime wheel. run.bat selects 3.12/3.11/3.13 and refuses 3.14+.
