@@ -22,6 +22,7 @@ const api: WinWinApi = {
   settingsGet: () => invoke(IpcChannel.settingsGet),
   settingsUpdate: (input) => invoke(IpcChannel.settingsUpdate, input),
   dashboardCounts: (input) => invoke(IpcChannel.dashboardCounts, input),
+  dashboardAttention: (input) => invoke(IpcChannel.dashboardAttention, input),
   boundaryList: () => invoke(IpcChannel.boundaryList),
   boundaryCreate: (input) => invoke(IpcChannel.boundaryCreate, input),
   boundaryUpdate: (input) => invoke(IpcChannel.boundaryUpdate, input),
@@ -85,7 +86,62 @@ const api: WinWinApi = {
   taskList: (input) => invoke(IpcChannel.taskList, input),
   taskCreate: (input) => invoke(IpcChannel.taskCreate, input),
   taskUpdate: (input) => invoke(IpcChannel.taskUpdate, input),
-  wardOverview: (input) => invoke(IpcChannel.wardOverview, input)
+  wardOverview: (input) => invoke(IpcChannel.wardOverview, input),
+  editionList: (input) => invoke(IpcChannel.editionList, input),
+  editionCreate: (input) => invoke(IpcChannel.editionCreate, input),
+  editionArchive: (input) => invoke(IpcChannel.editionArchive, input),
+  editionCounts: (input) => invoke(IpcChannel.editionCounts, input),
+  voterList: (input) => invoke(IpcChannel.voterList, input),
+  voterGet: (input) => invoke(IpcChannel.voterGet, input),
+  voterCreate: (input) => invoke(IpcChannel.voterCreate, input),
+  voterUpdate: (input) => invoke(IpcChannel.voterUpdate, input),
+  voterArchive: (input) => invoke(IpcChannel.voterArchive, input),
+  voterAssignBulk: (input) => invoke(IpcChannel.voterAssignBulk, input),
+  voterExport: (input) => invoke(IpcChannel.voterExport, input),
+  importOpen: (input) => invoke(IpcChannel.importOpen, input),
+  importSelectSheet: (input) => invoke(IpcChannel.importSelectSheet, input),
+  importSetEdition: (input) => invoke(IpcChannel.importSetEdition, input),
+  importSetMapping: (input) => invoke(IpcChannel.importSetMapping, input),
+  importValidate: (input) => invoke(IpcChannel.importValidate, input),
+  importListStaged: (input) => invoke(IpcChannel.importListStaged, input),
+  importReviewIdentifiers: (input) => invoke(IpcChannel.importReviewIdentifiers, input),
+  importAssignStaged: (input) => invoke(IpcChannel.importAssignStaged, input),
+  importCommit: (input) => invoke(IpcChannel.importCommit, input),
+  importCancel: (input) => invoke(IpcChannel.importCancel, input),
+  importTemplate: (input) => invoke(IpcChannel.importTemplate, input),
+  importErrorReport: (input) => invoke(IpcChannel.importErrorReport, input),
+  onImportProgress: (handler) => {
+    const listener = (_event: unknown, progress: { phase: string; processed: number; total: number; message: string }) => {
+      handler(progress);
+    };
+    ipcRenderer.on("winwin:import-progress", listener);
+    return () => {
+      ipcRenderer.removeListener("winwin:import-progress", listener);
+    };
+  },
+  duplicateList: (input) => invoke(IpcChannel.duplicateList, input),
+  duplicateReview: (input) => invoke(IpcChannel.duplicateReview, input),
+  reservationOpen: (input) => invoke(IpcChannel.reservationOpen, input),
+  reservationSelectSheet: (input) => invoke(IpcChannel.reservationSelectSheet, input),
+  reservationSetContext: (input) => invoke(IpcChannel.reservationSetContext, input),
+  reservationApproveMandal: (input) => invoke(IpcChannel.reservationApproveMandal, input),
+  reservationGeoPlan: (input) => invoke(IpcChannel.reservationGeoPlan, input),
+  reservationCreateGeo: (input) => invoke(IpcChannel.reservationCreateGeo, input),
+  reservationSetPartial: (input) => invoke(IpcChannel.reservationSetPartial, input),
+  reservationCommit: (input) => invoke(IpcChannel.reservationCommit, input),
+  reservationCancel: (input) => invoke(IpcChannel.reservationCancel, input),
+  reservationSession: (input) => invoke(IpcChannel.reservationSession, input),
+  reservationProposals: (input) => invoke(IpcChannel.reservationProposals, input),
+  reservationNotificationList: (input) => invoke(IpcChannel.reservationNotificationList, input),
+  reservationNotificationCreate: (input) => invoke(IpcChannel.reservationNotificationCreate, input),
+  reservationVerify: (input) => invoke(IpcChannel.reservationVerify, input),
+  reservationSupersede: (input) => invoke(IpcChannel.reservationSupersede, input),
+  reservationList: (input) => invoke(IpcChannel.reservationList, input),
+  reservationSummary: (input) => invoke(IpcChannel.reservationSummary, input),
+  reservationMatrix: (input) => invoke(IpcChannel.reservationMatrix, input),
+  reservationExport: (input) => invoke(IpcChannel.reservationExport, input),
+  reservationHistory: (input) => invoke(IpcChannel.reservationHistory, input),
+  reservationForUnit: (input) => invoke(IpcChannel.reservationForUnit, input)
 };
 
 contextBridge.exposeInMainWorld("winwin", api);

@@ -323,6 +323,28 @@ export interface ActivityItem {
   kind: "contact" | "team" | "issue" | "task";
   summary: string;
   recordId: string;
+  wardId?: string;
+  wardName?: string;
+  action?: string;
+  record?: string;
+  href?: string;
+}
+
+export interface DashboardWorkItem {
+  id: string;
+  title: string;
+  wardId: string;
+  wardName: string;
+  href: string;
+  dueDate?: string | null;
+  status?: string;
+  referenceNumber?: string;
+}
+
+export interface DashboardAttention {
+  overdueTasks: DashboardWorkItem[];
+  unresolvedIssues: DashboardWorkItem[];
+  recentActivity: ActivityItem[];
 }
 
 export interface WardOverview {
@@ -405,6 +427,7 @@ export interface VoterFilters {
   verificationStatus?: VerificationStatus | "";
   query?: string;
   unassignedOnly?: boolean;
+  assignedOnly?: boolean;
   includeArchived?: boolean;
   page?: number;
   pageSize?: number;
@@ -423,15 +446,78 @@ export interface ImportColumnMapping {
   sourcePage?: string;
 }
 
+export interface RollEditionCounts {
+  rollEditionId: string;
+  editionName: string;
+  revisionCode: string;
+  total: number;
+  assigned: number;
+  unassigned: number;
+  archived: number;
+  unverified: number;
+  verified: number;
+  needsReview: number;
+}
+
+export interface WardAssignmentHistoryEntry {
+  id: string;
+  fromWardId: string | null;
+  toWardId: string | null;
+  reason: string;
+  verificationSource: string;
+  changedAt: string;
+}
+
+export interface VoterChangeHistoryEntry {
+  id: string;
+  changedAt: string;
+  action: string;
+  fieldNames: string[];
+}
+
+export interface VoterDetail {
+  voter: VoterListItem;
+  changeHistory: VoterChangeHistoryEntry[];
+  assignmentHistory: WardAssignmentHistoryEntry[];
+  importBatch: { id: string; fileName: string; fileSha256: string; createdAt: string } | null;
+}
+
+export type VoterExportField = import("./constants").VoterExportField;
+
+export interface ImportPreviewCell {
+  text: string;
+  type: string;
+  raw: string;
+  displayed: string;
+  originalTextEstablished: boolean;
+  precisionUnreliable: boolean;
+  formula: boolean;
+}
+
+export interface ImportWorksheetInfo {
+  name: string;
+  hidden: boolean;
+}
+
 export interface ImportPreview {
   sessionId: string;
   fileName: string;
   fileSha256: string;
   columns: string[];
   previewRows: string[][];
+  previewCells: ImportPreviewCell[][];
   rowCount: number;
+  emptyRowCount: number;
+  formulaCellCount: number;
+  numericCoercionCount: number;
+  headerWarnings: string[];
+  worksheets: ImportWorksheetInfo[];
+  selectedSheet: string | null;
+  needsSheetSelection: boolean;
+  suggestedMapping: ImportColumnMapping;
   repeatedImport: boolean;
   previousBatchId: string | null;
+  repeatedInOtherEditions: boolean;
 }
 
 export interface ImportValidationIssue {
@@ -447,14 +533,35 @@ export interface StagedImportRow {
   assignedWardId: string | null;
   wardCandidates: Array<{ id: string; label: string }>;
   errors: string[];
+  empty: boolean;
+  rejected: boolean;
+  identifierReview: "ok" | "needed" | "accepted_raw" | "corrected";
+  corrections: Record<string, string>;
+  reviewedFields: Record<string, "accepted_raw" | "corrected">;
+  cellMeta: Record<
+    string,
+    {
+      type: string;
+      raw: string;
+      displayed: string;
+      originalTextEstablished: boolean;
+      precisionUnreliable: boolean;
+    }
+  >;
 }
 
 export interface ImportValidateResult {
   rows: StagedImportRow[];
+  rowsTruncated: boolean;
   errorCount: number;
   unassignedCount: number;
   ambiguousCount: number;
   assignedCount: number;
+  rejectedCount: number;
+  identifierReviewCount: number;
+  emptySkipped: number;
+  eligibleCount: number;
+  excludedCount: number;
   issues: ImportValidationIssue[];
 }
 
@@ -462,6 +569,8 @@ export interface ImportCommitResult {
   imported: number;
   batchId: string;
   flaggedDuplicates: number;
+  unassigned: number;
+  rejected: number;
 }
 
 export interface DuplicatePair {
@@ -483,4 +592,241 @@ export interface ResolvedScope {
   urbanLocalBodies: Record<string, CoverageKind | "inherited-complete">;
   ruralWards: Record<string, CoverageKind | "inherited-complete">;
   urbanWards: Record<string, CoverageKind | "inherited-complete">;
+}
+
+export type ReservationCategory = "UR" | "BC" | "SC" | "ST" | "unknown" | "not_recorded";
+export type ReservationSeatType = "sarpanch" | "ward_member";
+export type ReservationNotificationStatus = "draft" | "verified" | "superseded";
+export type ReservationReviewStatus =
+  | "pending"
+  | "mapped"
+  | "mandal_needs_review"
+  | "unmatched"
+  | "ambiguous"
+  | "missing_ward"
+  | "outside_coverage"
+  | "boundary_mismatch"
+  | "invalid_category"
+  | "not_recorded"
+  | "conflict"
+  | "excluded";
+
+export interface ReservationControls {
+  year: number | null;
+  gramPanchayats: number;
+  tanuku: number;
+  attili: number;
+  iragavaram: number;
+  sarpanchReservations: number;
+  declaredWardSeats: number;
+  populatedWardReservations: number;
+  missingReservationCells: number;
+  invalidReservationCodes: number;
+  sarpanchByCode: Record<string, number>;
+  wardByCode: Record<string, number>;
+  mandalProposedCounts: Record<string, number>;
+}
+
+export interface ReservationControlDiff {
+  label: string;
+  actual: number;
+  expected: number;
+}
+
+export interface ReservationParsedWardSeat {
+  wardNumber: string;
+  cell: string;
+  original: string;
+  category: ReservationCategory;
+  womenReserved: boolean;
+  missing: boolean;
+  valid: boolean;
+  formula: boolean;
+}
+
+export interface ReservationParsedRow {
+  sourceRow: number;
+  sourceMandal: string;
+  sourceGp: string;
+  proposedMandal: string;
+  derivedMandalFromSuffix: boolean;
+  sarpanchOriginal: string;
+  sarpanchCategory: ReservationCategory;
+  sarpanchWomenReserved: boolean;
+  sarpanchValid: boolean;
+  declaredWardCount: number | null;
+  populatedWardCount: number;
+  duplicateGp: boolean;
+  wardSeats: ReservationParsedWardSeat[];
+  issues: string[];
+}
+
+export interface ReservationWorkbookPreview {
+  fileName: string;
+  worksheetName: string;
+  districtSource: string;
+  year: number | null;
+  wardHeaders: string[];
+  rows: ReservationParsedRow[];
+  controls: ReservationControls;
+  expectedControls: ReservationControls;
+  controlDiffs: ReservationControlDiff[];
+  issues: string[];
+  fingerprint: string;
+  controlNote: string;
+}
+
+export interface ReservationSeatDraft {
+  seatType: ReservationSeatType;
+  sourceMandal: string;
+  sourceGp: string;
+  proposedMandal: string;
+  derivedMandalFromSuffix: boolean;
+  sourceWardNumber: string;
+  declaredWardCount: number | null;
+  originalCode: string;
+  category: ReservationCategory;
+  womenReserved: boolean;
+  sourceRow: number;
+  sourceCell: string;
+  issues: string[];
+}
+
+export interface ReservationNotification {
+  id: string;
+  constituencyId: string;
+  electionId: string;
+  boundaryVersionId: string;
+  year: number;
+  name: string;
+  notificationReference: string;
+  notificationDate: string | null;
+  districtSource: string;
+  status: ReservationNotificationStatus;
+  notes: string;
+  verifiedAt: string | null;
+  verifiedNotes: string;
+  createdAt: string;
+  updatedAt: string;
+  electionName?: string;
+}
+
+export interface ReservationSeat {
+  id: string;
+  notificationId: string;
+  importBatchId: string | null;
+  electionId: string;
+  year: number;
+  seatType: ReservationSeatType;
+  gramPanchayatId: string | null;
+  wardId: string | null;
+  sourceMandalLabel: string;
+  sourceGpLabel: string;
+  sourceWardNumber: string;
+  declaredWardCount: number | null;
+  originalCode: string;
+  category: ReservationCategory;
+  womenReserved: boolean;
+  reviewStatus: ReservationReviewStatus;
+  sourceFilename: string;
+  sourceWorksheet: string;
+  sourceRow: number | null;
+  sourceCell: string;
+  verificationNotes: string;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  gpName?: string;
+  wardName?: string;
+  mandalName?: string;
+}
+
+export interface ReservationHistoryItem {
+  id: string;
+  seatId: string;
+  notificationId: string;
+  changedAt: string;
+  action: string;
+  notes: string;
+  fieldNames: string[];
+}
+
+export interface ReservationMandalProposal {
+  proposed: string;
+  sourceLabels: string[];
+  derivedFromSuffix: boolean;
+  matchStatus: "unmatched" | "matched" | "ambiguous" | "approved";
+  mandalId: string | null;
+  mandalName: string | null;
+  candidates: Array<{ id: string; name: string }>;
+  approved: boolean;
+  gpCount: number;
+}
+
+export interface ReservationGeoCreatePlan {
+  mandals: Array<{ name: string; sourceLabels: string[] }>;
+  gramPanchayats: Array<{ mandalName: string; name: string }>;
+  wards: Array<{ mandalName: string; gpName: string; wardNumber: string }>;
+}
+
+export interface ReservationStagedRow {
+  draft: ReservationSeatDraft;
+  reviewStatus: ReservationReviewStatus;
+  mandalId: string | null;
+  gramPanchayatId: string | null;
+  wardId: string | null;
+  issues: string[];
+  importable: boolean;
+}
+
+export interface ReservationImportSession {
+  sessionId: string;
+  constituencyId: string;
+  fileName: string;
+  filePath: string;
+  worksheets: Array<{ name: string; hidden: boolean; excluded: boolean }>;
+  selectedSheet: string | null;
+  preview: ReservationWorkbookPreview | null;
+  electionId: string | null;
+  notificationId: string | null;
+  allowPartial: boolean;
+  mandalApprovals: Record<string, { mandalId: string | null; approved: boolean }>;
+  staged: ReservationStagedRow[];
+  geoPlan: ReservationGeoCreatePlan | null;
+  eligibleCount: number;
+  unresolvedCount: number;
+  excludedCount: number;
+}
+
+export interface ReservationSummary {
+  notification: ReservationNotification | null;
+  sarpanchByCategory: Record<string, number>;
+  wardByCategory: Record<string, number>;
+  womenReservedBySeatType: Record<ReservationSeatType, number>;
+  mandalTotals: Array<{ mandal: string; gps: number; sarpanch: number; wards: number }>;
+  unmapped: number;
+  unverified: number;
+  conflicting: number;
+  sourceWideNote: string;
+  importedSarpanch: number;
+  importedWardMembers: number;
+}
+
+export interface ReservationMatrixRow {
+  mandal: string;
+  gramPanchayat: string;
+  gpId: string | null;
+  sarpanchCode: string;
+  sarpanchWomen: boolean;
+  declaredWardCount: number | null;
+  wards: Array<{ wardNumber: string; code: string; womenReserved: boolean; applicable: boolean; missing: boolean }>;
+}
+
+export interface ReservationCommitResult {
+  imported: number;
+  unresolved: number;
+  excluded: number;
+  conflicting: number;
+  batchId: string;
+  notificationId: string;
 }

@@ -205,6 +205,7 @@ async function drive(cdp) {
   await ready(cdp);
   await setupGeo(cdp);
   await click(cdp, "[data-testid='tab-contacts']");
+  await click(cdp, "[data-testid='contact-add']");
   await waitFor(cdp, `Boolean(document.querySelector("#contact-name"))`);
   await fill(cdp, "#contact-name", `${LABEL} Lakshmi`);
   await fill(cdp, "#contact-org", "GP office");
@@ -225,6 +226,7 @@ async function drive(cdp) {
   log("contact", "created with consent");
 
   await click(cdp, "[data-testid='tab-team']");
+  await click(cdp, "[data-testid='team-add']");
   await waitFor(cdp, `Boolean(document.querySelector("#team-person"))`);
   const personValue = await cdp.evaluate(`document.querySelector("#team-person option:not([value=''])")?.value ?? ""`);
   if (!personValue) throw new Error("Person missing from team select");
@@ -235,6 +237,7 @@ async function drive(cdp) {
   log("team", "assignment created");
 
   await click(cdp, "[data-testid='tab-issues']");
+  await click(cdp, "[data-testid='issue-add']");
   await waitFor(cdp, `Boolean(document.querySelector("#issue-title"))`);
   await fill(cdp, "#issue-title", `${LABEL} Water leak`);
   await fill(cdp, "#issue-category", "water");
@@ -245,6 +248,7 @@ async function drive(cdp) {
   log("issue", "created");
 
   await click(cdp, "[data-testid='tab-tasks']");
+  await click(cdp, "[data-testid='task-add']");
   await waitFor(cdp, `Boolean(document.querySelector("#task-title"))`);
   await fill(cdp, "#task-title", `${LABEL} Inspect pipe`);
   const assignee = await cdp.evaluate(`document.querySelector("#task-assignee option:not([value=''])")?.value ?? ""`);

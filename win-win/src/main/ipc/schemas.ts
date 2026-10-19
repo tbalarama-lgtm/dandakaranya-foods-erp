@@ -18,6 +18,7 @@ export const voterFilters = z.object({
   verificationStatus: z.enum(["unverified", "verified", "needs_review", ""]).optional(),
   query: z.string().optional(),
   unassignedOnly: z.boolean().optional(),
+  assignedOnly: z.boolean().optional(),
   includeArchived: z.boolean().optional(),
   page: z.number().int().positive().optional(),
   pageSize: z.number().int().positive().max(200).optional()

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CoverageKind, GramPanchayat, Mandal, Village, WardListItem } from "@shared/types";
 import type { AppModel } from "../App";
+import { ReservationUnitCard } from "./ReservationsPage";
 
 export function RuralPage({ model }: { model: AppModel }): JSX.Element {
   const navigate = useNavigate();
@@ -166,7 +167,7 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
             <tr>
               <th>No.</th>
               <th>Name</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -178,7 +179,7 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
                 </td>
                 <td>
                   <button className="btn secondary" type="button" onClick={() => navigate(`/wards/${w.id}`)}>
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>
@@ -186,6 +187,7 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
           </tbody>
         </table>
       </article>
+      {gpId ? <ReservationUnitCard model={model} gramPanchayatId={gpId} /> : null}
       <form className="card grid" onSubmit={create} data-testid="rural-create-form">
         <h3>Create</h3>
         <label>
