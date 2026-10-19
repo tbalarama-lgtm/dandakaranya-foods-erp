@@ -216,7 +216,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
   return (
     <section className="grid">
       <h1>Import electoral roll</h1>
-      <p>
+      <p className="lede">
         CSV/XLSX only, processed on this computer. Numeric Excel identifiers are not treated as original text. Limit: 20 MB
         and 50,000 data rows.
       </p>

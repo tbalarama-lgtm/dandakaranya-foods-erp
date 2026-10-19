@@ -109,7 +109,7 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
                 <td>{ward.constituencyCoverageKind}</td>
                 <td>
                   <button className="btn secondary" type="button" onClick={() => navigate(`/wards/${ward.id}`)}>
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>

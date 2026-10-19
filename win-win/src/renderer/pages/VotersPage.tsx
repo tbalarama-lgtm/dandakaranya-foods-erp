@@ -10,6 +10,8 @@ import type {
   WardListItem
 } from "@shared/types";
 import type { AppModel } from "../App";
+import { Dialog } from "../Dialog";
+import { StatusBadge, verificationTone } from "../StatusBadge";
 
 const EMPTY_COUNTS: RollEditionCounts = {
   rollEditionId: "",
@@ -70,6 +72,8 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
   });
   const [bulkWard, setBulkWard] = useState("");
   const [bulkReason, setBulkReason] = useState("Reviewed mapping");
+  const [manageOpen, setManageOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const filters = useMemo(
     () => ({
@@ -158,6 +162,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
       setRevisionCode("");
       await loadEditions();
       setEditionId(created.id);
+      setManageOpen(false);
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
     }
@@ -184,6 +189,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
         assignedWardId: ""
       });
       await loadDirectory();
+      setCreateOpen(false);
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
     }
@@ -226,69 +232,53 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
 
   return (
     <section className="grid">
-      <h1>Electoral roll</h1>
-      <p>
-        Roll entries are authorized source records for the selected constituency. They are not person/contact identities and
-        are never matched automatically by name or phone.
-      </p>
-      <div className="row">
-        <Link className="btn" to="/import" data-testid="open-import">
-          Import CSV/XLSX
-        </Link>
-        <button className="btn secondary" type="button" data-testid="open-export" disabled={!editionId} onClick={() => setExportOpen(true)}>
-          Export selection
-        </button>
-      </div>
-      <article className="card grid">
-        <h2>Roll edition</h2>
-        <label>
-          Selected edition
-          <select id="voter-edition" data-testid="voter-edition" value={editionId} onChange={(e) => { setEditionId(e.target.value); setPage(1); }}>
-            <option value="">Select an edition — counts are never combined across revisions</option>
-            {editions.map((edition) => (
-              <option key={edition.id} value={edition.id}>
-                {edition.name}
-                {edition.revisionCode ? ` (${edition.revisionCode})` : ""}
-                {edition.archived ? " — archived" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <form className="row" onSubmit={createEdition} data-testid="edition-form">
-          <input id="edition-name" data-testid="edition-name" placeholder="Edition name" value={editionName} onChange={(e) => setEditionName(e.target.value)} required />
-          <input id="edition-revision" data-testid="edition-revision" placeholder="Revision code" value={revisionCode} onChange={(e) => setRevisionCode(e.target.value)} />
-          <button className="btn" id="edition-create" data-testid="edition-create" type="submit">
-            Create edition
+      <header className="ward-head">
+        <h1>Electoral roll</h1>
+        <p className="lede">
+          Source records for this constituency only. They are not contact identities and are never matched automatically by name or phone.
+        </p>
+      </header>
+      <div className="toolbar">
+        <div className="row">
+          <label>
+            Roll edition
+            <select id="voter-edition" data-testid="voter-edition" value={editionId} onChange={(e) => { setEditionId(e.target.value); setPage(1); }}>
+              <option value="">Select an edition — counts are never combined across revisions</option>
+              {editions.map((edition) => (
+                <option key={edition.id} value={edition.id}>
+                  {edition.name}
+                  {edition.revisionCode ? ` (${edition.revisionCode})` : ""}
+                  {edition.archived ? " — archived" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="btn secondary" type="button" data-testid="manage-editions" onClick={() => setManageOpen(true)}>
+            Manage editions
           </button>
-        </form>
-      </article>
-      {editionId ? (
-        <div className="grid stats">
-          <article className="card stat" data-testid="voter-count-total">
-            <span>This edition</span>
-            <b>{shownCounts.total}</b>
-          </article>
-          <article className="card stat" data-testid="voter-count-assigned">
-            <span>Assigned</span>
-            <b>{shownCounts.assigned}</b>
-          </article>
-          <article className="card stat" data-testid="voter-count-unassigned">
-            <span>Unassigned</span>
-            <b>{shownCounts.unassigned}</b>
-          </article>
-          <article className="card stat" data-testid="voter-count-archived">
-            <span>Archived</span>
-            <b>{shownCounts.archived}</b>
-          </article>
-          <article className="card stat">
-            <span>Needs review</span>
-            <b>{shownCounts.needsReview}</b>
-          </article>
         </div>
-      ) : null}
+        <div className="row">
+          <Link className="btn" to="/import" data-testid="open-import">
+            Import CSV/XLSX
+          </Link>
+          <button className="btn secondary" type="button" data-testid="open-export" disabled={!editionId} onClick={() => setExportOpen(true)}>
+            Export selection
+          </button>
+          <button className="btn secondary" type="button" data-testid="voter-add" disabled={!editionId} onClick={() => setCreateOpen(true)}>
+            Manual entry
+          </button>
+        </div>
+      </div>
       {editionId ? (
-        <p className="history" data-testid="voter-count-reconcile">
-          Assigned {shownCounts.assigned} + unassigned {shownCounts.unassigned} + archived {shownCounts.archived} = {shownCounts.assigned + shownCounts.unassigned + shownCounts.archived} (edition total {shownCounts.total})
+        <p className="counts-inline" data-testid="voter-count-reconcile">
+          <span data-testid="voter-count-total">This edition <b>{shownCounts.total}</b></span>
+          {" · "}
+          <span data-testid="voter-count-assigned">Assigned <b>{shownCounts.assigned}</b></span>
+          {" · "}
+          <span data-testid="voter-count-unassigned">Unassigned <b>{shownCounts.unassigned}</b></span>
+          {" · "}
+          <span data-testid="voter-count-archived">Archived <b>{shownCounts.archived}</b></span>
+          {" · "}Needs review {shownCounts.needsReview}
         </p>
       ) : (
         <p className="empty">Create or select a roll edition to see counts for that edition only.</p>
@@ -345,7 +335,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
                   />
                 </td>
                 <td>
-                  <button className="btn secondary" type="button" onClick={() => void openDetail(item.id)}>
+                  <button className="btn linkish" type="button" onClick={() => void openDetail(item.id)}>
                     {item.displayName || "(no name)"}
                   </button>
                   {item.displayNameEn ? <div className="history">{item.displayNameEn}</div> : null}
@@ -354,7 +344,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
                 <td>{item.displayRollSerial}</td>
                 <td>{item.wardLabel ?? "Unassigned"}</td>
                 <td>
-                  <span className="chip">{item.verificationStatus}</span>
+                  <StatusBadge tone={verificationTone(item.verificationStatus)}>{item.verificationStatus.replaceAll("_", " ")}</StatusBadge>
                   {item.archived ? <span className="chip danger">archived</span> : null}
                 </td>
               </tr>
@@ -411,7 +401,8 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
         </div>
       </article>
       {detail ? (
-        <article className="card grid" data-testid="voter-detail">
+      <Dialog open title="Record details" onClose={() => setDetail(null)} wide testId="voter-detail">
+        <article className="grid">
           <h2>Record details</h2>
           <p className="history">
             Source values stay unchanged. Local corrections are stored separately. Identifiers remain text.
@@ -503,6 +494,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
             ))}
           </ul>
         </article>
+      </Dialog>
       ) : null}
       <article className="card grid">
         <h2>Possible duplicates in this edition</h2>
@@ -523,7 +515,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
                 <td>{pair.voterB?.displayName} / {pair.voterB?.displayElectoralId}</td>
                 <td>{pair.reasons.join(" ")}</td>
                 <td>
-                  <span className="chip">{pair.status}</span>
+                  <StatusBadge tone="warning">{pair.status.replaceAll("_", " ")}</StatusBadge>
                   {pair.status === "flagged" ? (
                     <button
                       className="btn secondary"
@@ -544,8 +536,8 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
         </table>
         {duplicates.length === 0 ? <p className="empty">No flagged pairs in this edition.</p> : null}
       </article>
-      <form className="card grid" onSubmit={createVoter} data-testid="voter-create-form">
-        <h2>Manual entry</h2>
+      <Dialog open={createOpen} title="Manual entry" onClose={() => setCreateOpen(false)}>
+      <form className="grid" onSubmit={createVoter} data-testid="voter-create-form">
         <p>Use only fields present on the source. Birth dates are not inferred from published age.</p>
         <label>
           Name (original script)
@@ -567,6 +559,23 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
           Save entry
         </button>
       </form>
+      </Dialog>
+      <Dialog open={manageOpen} title="Manage editions" onClose={() => setManageOpen(false)}>
+        <form className="grid" onSubmit={createEdition} data-testid="edition-form">
+          <p className="lede">Counts are never combined across revisions.</p>
+          <label>
+            Edition name
+            <input id="edition-name" data-testid="edition-name" placeholder="Edition name" value={editionName} onChange={(e) => setEditionName(e.target.value)} required />
+          </label>
+          <label>
+            Revision code
+            <input id="edition-revision" data-testid="edition-revision" placeholder="Revision code" value={revisionCode} onChange={(e) => setRevisionCode(e.target.value)} />
+          </label>
+          <button className="btn" id="edition-create" data-testid="edition-create" type="submit">
+            Create edition
+          </button>
+        </form>
+      </Dialog>
       {exportOpen ? (
         <div className="dialog-backdrop">
           <article className="card dialog grid" data-testid="export-dialog">

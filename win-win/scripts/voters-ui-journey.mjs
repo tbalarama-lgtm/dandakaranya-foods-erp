@@ -241,6 +241,7 @@ async function drive(cdp) {
   await ready(cdp);
   await setupGeo(cdp);
   await click(cdp, '[data-testid="nav-voters"]');
+  await click(cdp, '[data-testid="manage-editions"]');
   await waitFor(cdp, `Boolean(document.querySelector("#edition-name"))`);
   await fill(cdp, "#edition-name", `${LABEL} Roll 2026`);
   await fill(cdp, "#edition-revision", "r1");

@@ -231,7 +231,7 @@ export function loadDemoData(db: Database.Database): { loaded: boolean } {
     createTask(db, {
       wardId: rural1.id,
       constituencyId: constituency.id,
-      title: "[DEMO] Upcoming booth checklist",
+      title: "[DEMO] Upcoming ward notice round",
       assignedPersonId: lakshmi.personId,
       dueDate: "2026-10-22",
       status: "open",

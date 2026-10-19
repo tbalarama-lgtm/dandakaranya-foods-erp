@@ -175,7 +175,7 @@ export function App(): JSX.Element {
             onChange={setBoundaryVersionId}
           />
           <button className="btn secondary" type="button" onClick={() => navigate("/settings")}>
-            New constituency
+            Constituencies
           </button>
         </div>
         {settings?.dataKind === "demo" ? <div className="banner">{t(locale, "demoBanner")}</div> : null}

@@ -42,7 +42,7 @@ export function DashboardPage({ model }: { model: AppModel }): JSX.Element {
   return (
     <section className="grid">
       <h1>Dashboard</h1>
-      <p className="breadcrumb">Counts use distinct units in the selected constituency coverage. Partial coverage is never treated as complete.</p>
+      <p className="lede">Counts use distinct units in the selected constituency coverage. Partial coverage is never treated as complete.</p>
       <div className="grid stats">
         {cards.map(([label, value]) => (
           <article className="card stat" key={String(label)} data-testid={`stat-${String(label).toLowerCase().replaceAll(" ", "-")}`}>

@@ -178,7 +178,7 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
                 </td>
                 <td>
                   <button className="btn secondary" type="button" onClick={() => navigate(`/wards/${w.id}`)}>
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>

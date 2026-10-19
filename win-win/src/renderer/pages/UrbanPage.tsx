@@ -129,7 +129,7 @@ export function UrbanPage({ model }: { model: AppModel }): JSX.Element {
                 <td>{w.name}</td>
                 <td>
                   <button className="btn secondary" type="button" onClick={() => navigate(`/wards/${w.id}`)}>
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>
