@@ -157,6 +157,7 @@ export function SettingsPage({ model }: { model: AppModel }): JSX.Element {
         <p>Optional labelled [DEMO] records. Refused if this workspace already has operational data.</p>
         <button
           className="btn secondary"
+          data-testid="demo-load"
           disabled={!demo?.canLoadDemo || busy}
           type="button"
           onClick={async () => {

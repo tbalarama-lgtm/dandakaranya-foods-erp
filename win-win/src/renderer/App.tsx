@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { ScopeSelect } from "./ScopeSelect";
 import { t } from "@shared/i18n";
 import type {
   AppInfo,
@@ -15,8 +16,14 @@ import { ElectionsPage } from "./pages/ElectionsPage";
 import { RuralPage } from "./pages/RuralPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UrbanPage } from "./pages/UrbanPage";
+import { ImportPage } from "./pages/ImportPage";
+import { VotersPage } from "./pages/VotersPage";
 import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
+
+function navClass({ isActive }: { isActive: boolean }): string {
+  return `nav-link${isActive ? " active" : ""}`;
+}
 
 export interface AppModel {
   api: typeof window.winwin;
@@ -37,6 +44,7 @@ export interface AppModel {
 export function App(): JSX.Element {
   const api = window.winwin;
   const navigate = useNavigate();
+  const location = useLocation();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [constituencies, setConstituencies] = useState<AssemblyConstituency[]>([]);
@@ -75,6 +83,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     refresh().catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, [refresh]);
+
+  useEffect(() => {
+    document.querySelector(".nav-link.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [location.pathname]);
 
   const locale = settings?.locale ?? "en";
   const model: AppModel = useMemo(
@@ -115,59 +127,59 @@ export function App(): JSX.Element {
         <div className="brand">
           WIN <span>WIN</span>
         </div>
-        <nav>
-          <NavLink data-testid="nav-dashboard" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/">
+        <nav aria-label="Main">
+          <NavLink end data-testid="nav-dashboard" className={navClass} to="/">
             {t(locale, "dashboard")}
           </NavLink>
-          <NavLink data-testid="nav-elections" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/elections">
+          <NavLink data-testid="nav-elections" className={navClass} to="/elections">
             {t(locale, "elections")}
           </NavLink>
-          <NavLink data-testid="nav-rural" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/rural">
+          <NavLink data-testid="nav-rural" className={navClass} to="/rural">
             {t(locale, "rural")}
           </NavLink>
-          <NavLink data-testid="nav-urban" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/urban">
+          <NavLink data-testid="nav-urban" className={navClass} to="/urban">
             {t(locale, "urban")}
           </NavLink>
-          <NavLink data-testid="nav-wards" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/wards">
+          <NavLink data-testid="nav-wards" className={navClass} to="/wards">
             {t(locale, "allWards")}
           </NavLink>
-          <NavLink data-testid="nav-coverage" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/coverage">
+          <NavLink end data-testid="nav-voters" className={navClass} to="/voters">
+            Voters
+          </NavLink>
+          <NavLink end data-testid="nav-import" className={navClass} to="/import">
+            Import
+          </NavLink>
+          <NavLink end data-testid="nav-coverage" className={navClass} to="/coverage">
             Coverage
           </NavLink>
-          <NavLink data-testid="nav-backup" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/backup">
+          <NavLink end data-testid="nav-backup" className={navClass} to="/backup">
             {t(locale, "backup")}
           </NavLink>
-          <NavLink data-testid="nav-settings" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/settings">
+          <NavLink end data-testid="nav-settings" className={navClass} to="/settings">
             {t(locale, "settings")}
           </NavLink>
         </nav>
       </aside>
       <main className="workspace">
         <div className="topbar">
-          <label>
-            {t(locale, "constituency")}
-            <select id="topbar-constituency" data-testid="topbar-constituency" value={constituencyId} onChange={(e) => setConstituencyId(e.target.value)}>
-              <option value="">Select…</option>
-              {constituencies.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} {item.nameTe ? `/ ${item.nameTe}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t(locale, "boundaryVersion")}
-            <select id="topbar-boundary" data-testid="topbar-boundary" value={boundaryVersionId} onChange={(e) => setBoundaryVersionId(e.target.value)}>
-              <option value="">Select…</option>
-              {boundaries.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ScopeSelect
+            id="topbar-constituency"
+            label={t(locale, "constituency")}
+            value={constituencyId}
+            emptyLabel="Select…"
+            options={constituencies}
+            onChange={setConstituencyId}
+          />
+          <ScopeSelect
+            id="topbar-boundary"
+            label={t(locale, "boundaryVersion")}
+            value={boundaryVersionId}
+            emptyLabel="Select…"
+            options={boundaries}
+            onChange={setBoundaryVersionId}
+          />
           <button className="btn secondary" type="button" onClick={() => navigate("/settings")}>
-            New constituency
+            Constituencies
           </button>
         </div>
         {settings?.dataKind === "demo" ? <div className="banner">{t(locale, "demoBanner")}</div> : null}
@@ -183,6 +195,8 @@ export function App(): JSX.Element {
           <Route path="/urban/*" element={<UrbanPage model={model} />} />
           <Route path="/wards" element={<WardsPage model={model} />} />
           <Route path="/wards/:id/*" element={<WardWorkspacePage model={model} />} />
+          <Route path="/voters" element={<VotersPage model={model} />} />
+          <Route path="/import" element={<ImportPage model={model} />} />
           <Route path="/coverage" element={<CoveragePage model={model} />} />
           <Route path="/backup" element={<BackupPage model={model} />} />
           <Route path="/settings" element={<SettingsPage model={model} />} />

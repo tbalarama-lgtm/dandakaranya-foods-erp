@@ -5,7 +5,9 @@ import { setCoverage } from "./coverage";
 import { createElection } from "./elections";
 import { createBoundary, createConstituency, createGp, createMandal, createUlb, createVillage } from "./geo";
 import { demoStatus } from "./settings";
+import { createEdition, createVoter } from "./voters";
 import { createWard, setVillageWard } from "./wards";
+import { createAssignment, createContact, createIssue, createTask } from "./workspace";
 
 export function loadDemoData(db: Database.Database): { loaded: boolean } {
   const status = demoStatus(db);
@@ -155,6 +157,131 @@ export function loadDemoData(db: Database.Database): { loaded: boolean } {
       },
       true
     );
+    const lakshmi = createContact(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      organization: "[DEMO] Ward Coordination Desk",
+      publicRole: "[DEMO] Ward coordinator",
+      areaServed: "[DEMO] Rural Ward 1 streets",
+      recordSource: "[DEMO] fictional seed",
+      person: {
+        name: "[DEMO] Lakshmi Reddy",
+        nameTe: "[DEMO] లక్ష్మి రెడ్డి",
+        consentStatus: "given",
+        consentDate: "2026-01-10",
+        consentSource: "[DEMO] scripted briefing note — not a real consent record"
+      }
+    });
+    const kamala = createContact(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      organization: "[DEMO] Example Self-Help Group",
+      publicRole: "[DEMO] Volunteer",
+      recordSource: "[DEMO] fictional seed",
+      person: {
+        name: "[DEMO] Kamala Rao",
+        nameTe: "[DEMO] కమల రావు",
+        consentStatus: "not_given"
+      }
+    });
+    createAssignment(db, {
+      personId: lakshmi.personId,
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      operationalRole: "ward_coordinator",
+      responsibilities: "[DEMO] Coordinate ward follow-up. Fictional.",
+      startDate: "2026-01-15",
+      status: "active"
+    });
+    createAssignment(db, {
+      personId: kamala.personId,
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      operationalRole: "field_volunteer",
+      responsibilities: "[DEMO] Ended field assignment. Fictional.",
+      startDate: "2025-06-01",
+      endDate: "2026-03-01",
+      status: "inactive"
+    });
+    createIssue(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      title: "[DEMO] Handpump delay",
+      category: "water",
+      location: "[DEMO] Village A borewell",
+      description: "Fictional open issue for software demonstration.",
+      reportedAt: "2026-04-02",
+      responsiblePersonId: lakshmi.personId,
+      priority: "high",
+      status: "open"
+    });
+    createIssue(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      title: "[DEMO] Street light restored",
+      category: "electricity",
+      location: "[DEMO] GP East road",
+      description: "Fictional resolved issue for software demonstration.",
+      reportedAt: "2026-02-10",
+      responsiblePersonId: lakshmi.personId,
+      priority: "medium",
+      status: "resolved",
+      resolutionNotes: "[DEMO] Light replaced. Fictional resolution notes."
+    });
+    createTask(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      title: "[DEMO] Upcoming ward notice round",
+      assignedPersonId: lakshmi.personId,
+      dueDate: "2026-10-22",
+      status: "open",
+      description: "Fictional upcoming task."
+    });
+    createTask(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      title: "[DEMO] Overdue water follow-up",
+      assignedPersonId: lakshmi.personId,
+      dueDate: "2026-01-20",
+      status: "open",
+      description: "Fictional overdue task."
+    });
+    createTask(db, {
+      wardId: rural1.id,
+      constituencyId: constituency.id,
+      title: "[DEMO] Completed notice distribution",
+      assignedPersonId: lakshmi.personId,
+      dueDate: "2026-02-01",
+      status: "done",
+      completedAt: "2026-02-02",
+      completionNotes: "[DEMO] Finished. Fictional."
+    });
+    const edition = createEdition(db, {
+      constituencyId: constituency.id,
+      boundaryVersionId: version.id,
+      name: "[DEMO] Roll 2026",
+      revisionCode: "r1",
+      notes: "Fictional electoral-roll edition."
+    });
+    createVoter(db, {
+      rollEditionId: edition.id,
+      constituencyId: constituency.id,
+      sourceName: "[DEMO] రాము",
+      sourceNameEn: "[DEMO] Ramu",
+      sourceElectoralId: "ABC0001",
+      sourceRollSerial: "0012",
+      sourceAddress: "[DEMO] Ward 1 house",
+      assignedWardId: rural1.id
+    });
+    createVoter(db, {
+      rollEditionId: edition.id,
+      constituencyId: constituency.id,
+      sourceName: "[DEMO] సీత",
+      sourceNameEn: "[DEMO] Sita",
+      sourceElectoralId: "ABC0002",
+      sourceRollSerial: "0013",
+      sourceAddress: "[DEMO] Address not mapped"
+    });
     db.prepare("UPDATE app_meta SET value = ? WHERE key = 'data_kind'").run("demo");
     db.prepare("UPDATE app_meta SET value = ? WHERE key = 'default_constituency_id'").run(constituency.id);
     writeAudit(db, { action: "create", entityType: "demo_dataset", recordId: "demo", changedFields: [] });

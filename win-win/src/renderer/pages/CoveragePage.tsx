@@ -192,7 +192,7 @@ export function CoveragePage({ model }: { model: AppModel }): JSX.Element {
               <th>Type</th>
               <th>Unit</th>
               <th>Coverage</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>

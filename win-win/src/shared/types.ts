@@ -323,6 +323,28 @@ export interface ActivityItem {
   kind: "contact" | "team" | "issue" | "task";
   summary: string;
   recordId: string;
+  wardId?: string;
+  wardName?: string;
+  action?: string;
+  record?: string;
+  href?: string;
+}
+
+export interface DashboardWorkItem {
+  id: string;
+  title: string;
+  wardId: string;
+  wardName: string;
+  href: string;
+  dueDate?: string | null;
+  status?: string;
+  referenceNumber?: string;
+}
+
+export interface DashboardAttention {
+  overdueTasks: DashboardWorkItem[];
+  unresolvedIssues: DashboardWorkItem[];
+  recentActivity: ActivityItem[];
 }
 
 export interface WardOverview {
@@ -405,6 +427,7 @@ export interface VoterFilters {
   verificationStatus?: VerificationStatus | "";
   query?: string;
   unassignedOnly?: boolean;
+  assignedOnly?: boolean;
   includeArchived?: boolean;
   page?: number;
   pageSize?: number;
@@ -423,15 +446,78 @@ export interface ImportColumnMapping {
   sourcePage?: string;
 }
 
+export interface RollEditionCounts {
+  rollEditionId: string;
+  editionName: string;
+  revisionCode: string;
+  total: number;
+  assigned: number;
+  unassigned: number;
+  archived: number;
+  unverified: number;
+  verified: number;
+  needsReview: number;
+}
+
+export interface WardAssignmentHistoryEntry {
+  id: string;
+  fromWardId: string | null;
+  toWardId: string | null;
+  reason: string;
+  verificationSource: string;
+  changedAt: string;
+}
+
+export interface VoterChangeHistoryEntry {
+  id: string;
+  changedAt: string;
+  action: string;
+  fieldNames: string[];
+}
+
+export interface VoterDetail {
+  voter: VoterListItem;
+  changeHistory: VoterChangeHistoryEntry[];
+  assignmentHistory: WardAssignmentHistoryEntry[];
+  importBatch: { id: string; fileName: string; fileSha256: string; createdAt: string } | null;
+}
+
+export type VoterExportField = import("./constants").VoterExportField;
+
+export interface ImportPreviewCell {
+  text: string;
+  type: string;
+  raw: string;
+  displayed: string;
+  originalTextEstablished: boolean;
+  precisionUnreliable: boolean;
+  formula: boolean;
+}
+
+export interface ImportWorksheetInfo {
+  name: string;
+  hidden: boolean;
+}
+
 export interface ImportPreview {
   sessionId: string;
   fileName: string;
   fileSha256: string;
   columns: string[];
   previewRows: string[][];
+  previewCells: ImportPreviewCell[][];
   rowCount: number;
+  emptyRowCount: number;
+  formulaCellCount: number;
+  numericCoercionCount: number;
+  headerWarnings: string[];
+  worksheets: ImportWorksheetInfo[];
+  selectedSheet: string | null;
+  needsSheetSelection: boolean;
+  suggestedMapping: ImportColumnMapping;
   repeatedImport: boolean;
   previousBatchId: string | null;
+  repeatedInOtherEditions: boolean;
 }
 
 export interface ImportValidationIssue {
@@ -447,14 +533,35 @@ export interface StagedImportRow {
   assignedWardId: string | null;
   wardCandidates: Array<{ id: string; label: string }>;
   errors: string[];
+  empty: boolean;
+  rejected: boolean;
+  identifierReview: "ok" | "needed" | "accepted_raw" | "corrected";
+  corrections: Record<string, string>;
+  reviewedFields: Record<string, "accepted_raw" | "corrected">;
+  cellMeta: Record<
+    string,
+    {
+      type: string;
+      raw: string;
+      displayed: string;
+      originalTextEstablished: boolean;
+      precisionUnreliable: boolean;
+    }
+  >;
 }
 
 export interface ImportValidateResult {
   rows: StagedImportRow[];
+  rowsTruncated: boolean;
   errorCount: number;
   unassignedCount: number;
   ambiguousCount: number;
   assignedCount: number;
+  rejectedCount: number;
+  identifierReviewCount: number;
+  emptySkipped: number;
+  eligibleCount: number;
+  excludedCount: number;
   issues: ImportValidationIssue[];
 }
 
@@ -462,6 +569,8 @@ export interface ImportCommitResult {
   imported: number;
   batchId: string;
   flaggedDuplicates: number;
+  unassigned: number;
+  rejected: number;
 }
 
 export interface DuplicatePair {

@@ -138,4 +138,30 @@ The database starts empty. Settings can load labelled `[DEMO]` records only into
 
 Each rural and urban ward opens a workspace: **Overview | Contacts | Team | Issues | Tasks**. Contacts separate person identity from ward associations. Phone and email require recorded consent. Team assignment history is kept. Issues have dated status history. Tasks calculate overdue dates with the local calendar.
 
-Voter rolls, CSV/XLSX import, messaging and documents are not in this build.
+## Phase 3 electoral roll
+
+Voters and Import screens store authorized roll editions, CSV/XLSX batches, electoral-roll entries, and ward assignment history. Person/contact records stay separate and are never linked by name or phone.
+
+Import limits: 20 MB file size and 50,000 data rows. Formula cells are not executed. PDF/OCR, messaging and documents are later phases.
+
+**Identifiers:** keep them as text in the source spreadsheet (templates use Excel text format `@`). Numeric Excel cells are unreliable for electoral identifiers, serials and geographic codes: Excel may already have dropped leading zeros. WIN WIN detects numeric source cells, shows cell type / raw value / displayed value in preview, and will not pad or reconstruct identifiers. A reviewer must accept the stored raw number or type the exact source text. The file value is stored in `source_*`; the correction is stored in `local_*`. Custom number formats, scientific notation and values beyond `Number.MAX_SAFE_INTEGER` are treated as original-text-not-established. Formula cells are not executed; cached results are shown for review only.
+
+Parse and validate yield to the UI event loop every 250 rows so Electron can process cancel and paint. The SQLite commit is one atomic transaction and cannot yield mid-write; cancellation is honoured until that transaction starts.
+
+Measured on Linux (Vitest, not Windows/macOS) 2026-10-18:
+
+| Rows | Parse | Validate | Commit (in-memory SQLite) | Yields |
+| --- | --- | --- | --- | --- |
+| 2,000 | 4 ms | 7 ms | 122 ms | 21 |
+| 10,000 | 9 ms | 25 ms | 569 ms | 85 |
+| 50,000 | 52 ms | 81 ms | 3,063 ms | 405 |
+
+Same 50,000-row CSV against a WAL file database: validate 42 ms, commit 3,345 ms. These numbers are host-specific. Do not treat them as Windows or macOS installer proof.
+
+Isolated profiles:
+
+```bat
+npm run build
+npm run test:ui-voters
+npm run test:ui-integrity
+```

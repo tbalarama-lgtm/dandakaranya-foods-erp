@@ -469,6 +469,14 @@ CREATE INDEX ix_issues_responsible ON issues(responsible_person_id, status);
 CREATE INDEX ix_tasks_issue ON tasks(related_issue_id);
 CREATE INDEX ix_persons_consent ON persons(consent_status, archived);
 `
+  },
+  {
+    version: 5,
+    sql: `
+ALTER TABLE ward_assignment_history ADD COLUMN verification_source TEXT NOT NULL DEFAULT '';
+CREATE INDEX ix_voter_edition_active ON voter_entries(roll_edition_id, archived, assigned_ward_id);
+CREATE INDEX ix_import_edition_hash ON import_batches(constituency_id, roll_edition_id, file_sha256, status);
+`
   }
 ];
 

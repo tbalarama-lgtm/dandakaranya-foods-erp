@@ -9,15 +9,25 @@ import type {
   IssueStatus,
   IssueStatusHistory,
   Person,
+  RollEdition,
   TaskItem,
   TaskStatus,
   TeamAssignment,
   Village,
+  VoterListItem,
   WardContact,
   WardDetail,
   WardOverview
 } from "@shared/types";
 import type { AppModel } from "../App";
+import { Dialog } from "../Dialog";
+import {
+  StatusBadge,
+  assignmentTone,
+  consentTone,
+  issueTone,
+  taskTone
+} from "../StatusBadge";
 
 function roleLabel(value: string): string {
   return value.replaceAll("_", " ");
@@ -56,7 +66,6 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
   if (!detail) return <p>Loading ward…</p>;
 
   const constituencyName = model.constituencies.find((c) => c.id === model.constituencyId)?.name ?? "Constituency";
-  const boundaryName = detail.breadcrumb.boundaryVersion?.name ?? "Boundary";
   const crumbs = [
     constituencyName,
     detail.breadcrumb.mandal?.name,
@@ -78,21 +87,19 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
 
   return (
     <section className="grid">
-      <p className="breadcrumb" data-testid="ward-breadcrumb">
-        {crumbs.join(" → ")}
-      </p>
-      <div className="context-strip">
-        <h1 style={{ margin: 0 }}>
-          {detail.ward.name} <span className="chip">{detail.ward.classification}</span>
-        </h1>
-        <span className="chip muted">No. {detail.ward.wardNumber}</span>
-        <span className="chip muted">{constituencyName}</span>
-        <span className="chip muted">{boundaryName}</span>
-      </div>
-      <p>
-        Parent local body: {detail.parent.name}
-        {detail.ward.nameTe ? ` · ${detail.ward.nameTe}` : ""}
-      </p>
+      <header className="ward-head">
+        <p className="breadcrumb" data-testid="ward-breadcrumb">
+          {crumbs.join(" → ")}
+        </p>
+        <div className="context-strip">
+          <h1>
+            {detail.ward.name}
+            {detail.ward.nameTe ? ` · ${detail.ward.nameTe}` : ""}
+          </h1>
+          <StatusBadge tone="neutral">{detail.ward.classification}</StatusBadge>
+          <span className="counts-inline">No. {detail.ward.wardNumber} · {detail.parent.name}</span>
+        </div>
+      </header>
       <nav className="tabs" aria-label="Ward workspace">
         <NavLink end className={({ isActive }) => `tab${isActive ? " active" : ""}`} to={`/wards/${id}`} data-testid="tab-overview">
           Overview
@@ -108,6 +115,9 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
         </NavLink>
         <NavLink className={({ isActive }) => `tab${isActive ? " active" : ""}`} to={`/wards/${id}/tasks`} data-testid="tab-tasks">
           Tasks
+        </NavLink>
+        <NavLink className={({ isActive }) => `tab${isActive ? " active" : ""}`} to={`/wards/${id}/voters`} data-testid="tab-voters">
+          Voters
         </NavLink>
       </nav>
       <Routes>
@@ -132,6 +142,7 @@ export function WardWorkspacePage({ model }: { model: AppModel }): JSX.Element {
         <Route path="team" element={<TeamTab model={model} ctx={ctx} />} />
         <Route path="issues" element={<IssuesTab model={model} ctx={ctx} />} />
         <Route path="tasks" element={<TasksTab model={model} ctx={ctx} />} />
+        <Route path="voters" element={<WardVotersTab model={model} ctx={ctx} />} />
       </Routes>
     </section>
   );
@@ -217,8 +228,8 @@ function OverviewTab({
         <h2>Recent activity</h2>
         <ul data-testid="overview-activity">
           {overview?.recentActivity.map((item) => (
-            <li key={`${item.kind}-${item.recordId}-${item.at}`}>
-              {item.summary} · {item.at.slice(0, 10)}
+              <li key={`${item.kind}-${item.recordId}-${item.at}`}>
+              {item.action ?? item.kind} · {item.record ?? item.summary} · {item.at.replace("T", " ").slice(0, 16)}
             </li>
           ))}
         </ul>
@@ -320,6 +331,7 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
   const [editing, setEditing] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   async function load(): Promise<void> {
     const [list, persons] = await Promise.all([
@@ -400,6 +412,7 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
         });
       }
       resetForm();
+      setFormOpen(false);
       await load();
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
@@ -410,8 +423,21 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
 
   return (
     <div className="grid">
-      <div className="search">
-        <input data-testid="contact-search" placeholder="Search name, organization or role" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="toolbar">
+        <div className="search">
+          <input data-testid="contact-search" placeholder="Search name, organization or role" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </div>
+        <button
+          className="btn"
+          type="button"
+          data-testid="contact-add"
+          onClick={() => {
+            resetForm();
+            setFormOpen(true);
+          }}
+        >
+          Add contact
+        </button>
       </div>
       <article className="card">
         <table className="table" data-testid="contact-table">
@@ -421,7 +447,7 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
               <th>Organization</th>
               <th>Role</th>
               <th>Consent</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -433,7 +459,7 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
                 <td>{row.organization}</td>
                 <td>{row.publicRole}</td>
                 <td>
-                  <span className="chip">{row.person.consentStatus.replaceAll("_", " ")}</span>
+                  <StatusBadge tone={consentTone(row.person.consentStatus)}>{row.person.consentStatus.replaceAll("_", " ")}</StatusBadge>
                 </td>
                 <td className="row">
                   <button
@@ -458,9 +484,10 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
                       setLastVerifiedAt(row.lastVerifiedAt ?? "");
                       setNotes(row.coordinationNotes);
                       setDirty(false);
+                      setFormOpen(true);
                     }}
                   >
-                    Edit
+                    View details
                   </button>
                   <button
                     className="btn danger"
@@ -480,9 +507,17 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
         </table>
         {rows.length === 0 ? <p className="empty">No contacts in this ward yet.</p> : null}
       </article>
-      <form className="card grid" onSubmit={onSubmit} data-testid="contact-form">
-        <h2>{editing ? "Edit contact" : "Add contact"}</h2>
-        <p>The same person can be linked to several wards. Phone and email are stored only with recorded consent.</p>
+      <Dialog
+        open={formOpen}
+        title={editing ? "Edit contact" : "Add contact"}
+        onClose={() => {
+          if (dirty && !window.confirm("Discard unsaved contact changes?")) return;
+          resetForm();
+          setFormOpen(false);
+        }}
+      >
+      <form className="grid" onSubmit={onSubmit} data-testid="contact-form">
+        <p className="lede">The same person can be linked to several wards. Phone and email are stored only with recorded consent.</p>
         {!editing ? (
           <label>
             Identity
@@ -570,12 +605,20 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
             {editing ? "Save contact" : "Create contact"}
           </button>
           {editing ? (
-            <button className="btn secondary" type="button" onClick={resetForm}>
+            <button
+              className="btn secondary"
+              type="button"
+              onClick={() => {
+                resetForm();
+                setFormOpen(false);
+              }}
+            >
               Cancel
             </button>
           ) : null}
         </div>
       </form>
+      </Dialog>
     </div>
   );
 }
@@ -590,6 +633,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
   const [endDate, setEndDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   async function load(): Promise<void> {
     const [assignments, persons] = await Promise.all([
@@ -620,6 +664,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
       setDirty(false);
       setPersonId("");
       setResponsibilities("");
+      setFormOpen(false);
       await load();
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
@@ -630,6 +675,12 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
 
   return (
     <div className="grid">
+      <div className="toolbar">
+        <p className="lede">Active and ended assignments stay on this ward. Person identities are not deleted.</p>
+        <button className="btn" type="button" data-testid="team-add" onClick={() => setFormOpen(true)}>
+          Assign team member
+        </button>
+      </div>
       <article className="card">
         <table className="table" data-testid="team-table">
           <thead>
@@ -638,7 +689,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
               <th>Role</th>
               <th>Dates</th>
               <th>Status</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -650,7 +701,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
                   {row.startDate ?? "—"} → {row.endDate ?? "open"}
                 </td>
                 <td>
-                  <span className={`chip${row.status === "inactive" ? " muted" : ""}`}>{row.status}</span>
+                  <StatusBadge tone={assignmentTone(row.status)}>{row.status}</StatusBadge>
                 </td>
                 <td>
                   {row.status === "active" ? (
@@ -686,8 +737,8 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
         </table>
         {rows.length === 0 ? <p className="empty">No team assignments yet.</p> : null}
       </article>
-      <form className="card grid" onSubmit={onSubmit} data-testid="team-form">
-        <h2>Assign team member</h2>
+      <Dialog open={formOpen} title="Assign team member" onClose={() => setFormOpen(false)}>
+      <form className="grid" onSubmit={onSubmit} data-testid="team-form">
         <label>
           Person
           <select id="team-person" data-testid="team-person" required value={personId} onChange={(e) => { setDirty(true); setPersonId(e.target.value); }}>
@@ -726,6 +777,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
         </button>
         {dirty ? <p className="history">Unsaved assignment details.</p> : null}
       </form>
+      </Dialog>
     </div>
   );
 }
@@ -753,6 +805,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
   const [complainantName, setComplainantName] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   async function load(): Promise<void> {
     const [list, assignments] = await Promise.all([
@@ -805,6 +858,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
       setResolutionNotes("");
       setComplainantName("");
       setStatus("open");
+      setFormOpen(false);
       await load();
     } catch (err) {
       model.setError(err instanceof Error ? err.message : String(err));
@@ -817,6 +871,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
 
   return (
     <div className="grid">
+      <div className="toolbar">
       <div className="row">
         <div className="search">
           <input data-testid="issue-search" placeholder="Search title or reference" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -852,6 +907,19 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
           ))}
         </select>
       </div>
+        <button
+          className="btn"
+          type="button"
+          data-testid="issue-add"
+          onClick={() => {
+            setSelected(null);
+            setTitle("");
+            setFormOpen(true);
+          }}
+        >
+          Log issue
+        </button>
+      </div>
       <article className="card">
         <table className="table" data-testid="issue-table">
           <thead>
@@ -860,7 +928,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
               <th>Title</th>
               <th>Status</th>
               <th>Priority</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -869,7 +937,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
                 <td>{row.referenceNumber}</td>
                 <td>{row.title}</td>
                 <td>
-                  <span className="chip">{row.status.replaceAll("_", " ")}</span>
+                  <StatusBadge tone={issueTone(row.status)}>{row.status.replaceAll("_", " ")}</StatusBadge>
                 </td>
                 <td>{row.priority}</td>
                 <td>
@@ -893,9 +961,10 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
                       setComplainantName(row.complainantName);
                       setHistory(detail.history);
                       setDirty(false);
+                      setFormOpen(true);
                     }}
                   >
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>
@@ -904,20 +973,12 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
         </table>
         {rows.length === 0 ? <p className="empty">No issues match these filters.</p> : null}
       </article>
-      {history.length ? (
-        <article className="card">
-          <h3>Status history</h3>
-          <ul className="history" data-testid="issue-history">
-            {history.map((item) => (
-              <li key={item.id}>
-                {item.changedAt} · {item.status.replaceAll("_", " ")} {item.note ? `— ${item.note}` : ""}
-              </li>
-            ))}
-          </ul>
-        </article>
-      ) : null}
-      <form className="card grid" onSubmit={onSubmit} data-testid="issue-form">
-        <h2>{selected ? "Update issue" : "Log issue"}</h2>
+      <Dialog
+        open={formOpen}
+        title={selected ? "Update issue" : "Log issue"}
+        onClose={() => setFormOpen(false)}
+      >
+      <form className="grid" onSubmit={onSubmit} data-testid="issue-form">
         <label>
           Title
           <input id="issue-title" data-testid="issue-title" required value={title} onChange={(e) => { setDirty(true); setTitle(e.target.value); }} />
@@ -985,10 +1046,23 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
           Complainant (optional)
           <input value={complainantName} onChange={(e) => { setDirty(true); setComplainantName(e.target.value); }} />
         </label>
+        {history.length ? (
+          <div>
+            <h3>Status history</h3>
+            <ul className="history" data-testid="issue-history">
+              {history.map((item) => (
+                <li key={item.id}>
+                  {item.changedAt} · {item.status.replaceAll("_", " ")} {item.note ? `— ${item.note}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <button className="btn" id="issue-save" data-testid="issue-save" disabled={busy} type="submit">
           {selected ? "Save issue" : "Create issue"}
         </button>
       </form>
+      </Dialog>
     </div>
   );
 }
@@ -1009,6 +1083,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   async function load(): Promise<void> {
     const [list, assignments, issuePage] = await Promise.all([
@@ -1052,6 +1127,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
       setRelatedIssueId("");
       setStatus("open");
       setCompletionNotes("");
+      setFormOpen(false);
       await load();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1070,6 +1146,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
 
   return (
     <div className="grid">
+      <div className="toolbar">
       <div className="row">
         <select data-testid="task-filter" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
           <option value="">All open and completed</option>
@@ -1087,6 +1164,19 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
           ))}
         </select>
       </div>
+        <button
+          className="btn"
+          type="button"
+          data-testid="task-add"
+          onClick={() => {
+            setEditing(null);
+            setTitle("");
+            setFormOpen(true);
+          }}
+        >
+          Create task
+        </button>
+      </div>
       <article className="card">
         <table className="table" data-testid="task-table">
           <thead>
@@ -1094,7 +1184,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
               <th>Title</th>
               <th>Due</th>
               <th>Status</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1102,9 +1192,13 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
               <tr key={row.id}>
                 <td>{row.title}</td>
                 <td>
-                  {row.dueDate ?? "—"} {row.overdue ? <span className="chip danger">overdue</span> : null}
+                  {row.dueDate ?? "—"} {row.overdue ? <StatusBadge tone="danger">overdue</StatusBadge> : null}
                 </td>
-                <td>{row.status === "done" ? "completed" : row.status.replaceAll("_", " ")}</td>
+                <td>
+                  <StatusBadge tone={taskTone(row.status)}>
+                    {row.status === "done" ? "completed" : row.status.replaceAll("_", " ")}
+                  </StatusBadge>
+                </td>
                 <td>
                   <button
                     className="btn secondary"
@@ -1120,9 +1214,10 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
                       setStatus(row.status);
                       setCompletionNotes(row.completionNotes);
                       setDirty(false);
+                      setFormOpen(true);
                     }}
                   >
-                    Open
+                    View details
                   </button>
                 </td>
               </tr>
@@ -1131,15 +1226,15 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
         </table>
         {rows.length === 0 ? <p className="empty">No tasks match these filters.</p> : null}
       </article>
+      <Dialog open={formOpen} title={editing ? "Update task" : "Create task"} onClose={() => setFormOpen(false)}>
       <form
-        className="card grid"
+        className="grid"
         data-testid="task-form"
         onSubmit={(event) => {
           event.preventDefault();
           void save();
         }}
       >
-        <h2>{editing ? "Update task" : "Create task"}</h2>
         <label>
           Title
           <input id="task-title" data-testid="task-title" required value={title} onChange={(e) => { setDirty(true); setTitle(e.target.value); }} />
@@ -1191,6 +1286,87 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
           {editing ? "Save task" : "Create task"}
         </button>
       </form>
+      </Dialog>
+    </div>
+  );
+}
+
+function WardVotersTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; constituencyId: string } }): JSX.Element {
+  const [editions, setEditions] = useState<RollEdition[]>([]);
+  const [editionId, setEditionId] = useState("");
+  const [items, setItems] = useState<VoterListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    model.api
+      .editionList({ constituencyId: ctx.constituencyId })
+      .then((next) => {
+        setEditions(next);
+        setEditionId((current) => current || next[0]?.id || "");
+      })
+      .catch((err: unknown) => model.setError(err instanceof Error ? err.message : String(err)));
+  }, [ctx.constituencyId]);
+
+  useEffect(() => {
+    if (!editionId) {
+      setItems([]);
+      setTotal(0);
+      return;
+    }
+    model.api
+      .voterList({
+        constituencyId: ctx.constituencyId,
+        wardId: ctx.wardId,
+        rollEditionId: editionId,
+        query,
+        page: 1,
+        pageSize: 25
+      })
+      .then((page) => {
+        setItems(page.items);
+        setTotal(page.total);
+      })
+      .catch((err: unknown) => model.setError(err instanceof Error ? err.message : String(err)));
+  }, [ctx.constituencyId, ctx.wardId, editionId, query]);
+
+  return (
+    <div className="grid">
+      <p>Assigned electoral-roll entries for this ward in the selected edition only. Contact identities stay separate.</p>
+      <label>
+        Roll edition
+        <select data-testid="ward-voter-edition" value={editionId} onChange={(e) => setEditionId(e.target.value)}>
+          <option value="">Select edition</option>
+          {editions.map((edition) => (
+            <option key={edition.id} value={edition.id}>
+              {edition.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Search
+        <input data-testid="ward-voter-query" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </label>
+      <p data-testid="ward-voter-count">{editionId ? `${total} in this edition` : "Select an edition to see a count."}</p>
+      <table className="table" data-testid="ward-voter-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Identifier</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>{item.displayName}</td>
+              <td>{item.displayElectoralId}</td>
+              <td>{item.displayAddress}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
