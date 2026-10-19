@@ -1,6 +1,66 @@
 # Secure Local Voter Roll Converter
 
-Offline PDF → Excel tool for **searchable** Indian electoral-roll PDFs. It is a separate local utility from WIN WIN and from the ERP. Files are not uploaded.
+Offline PDF → Excel tool for **searchable** Indian electoral-roll PDFs. It is a separate local utility from WIN WIN. Files never leave your computer.
+
+## Install on your computer
+
+You need **Python 3.10 or newer** with Tkinter (the built-in GUI library).
+
+### 1. Get the folder
+
+Clone the repository (or download the ZIP) and open `voter-list-converter`:
+
+```bash
+git clone https://github.com/tbalarama-lgtm/dandakaranya-foods-erp.git
+cd dandakaranya-foods-erp
+git checkout cursor/voter-roll-converter-c283
+cd voter-list-converter
+```
+
+### 2. Windows
+
+1. Install Python from https://www.python.org/downloads/
+2. On the installer, enable **Add python.exe to PATH** and leave **tcl/tk and IDLE** checked.
+3. Double-click `run.bat`
+
+Or in Command Prompt:
+
+```bat
+cd voter-list-converter
+run.bat
+```
+
+The window title is **Secure Local Voter Roll Converter**. Choose a searchable `.pdf` roll, set the Excel name, then **Start Secure Conversion**.
+
+### 3. macOS
+
+```bash
+# if python3 -c "import tkinter" fails:
+brew install python-tk
+
+cd voter-list-converter
+chmod +x run.sh
+./run.sh
+```
+
+### 4. Linux
+
+```bash
+sudo apt install python3 python3-venv python3-tk
+cd voter-list-converter
+chmod +x run.sh
+./run.sh
+```
+
+### Try it with the sample roll
+
+After the window opens:
+
+1. Browse File → `tests/fixtures/sample-electoral-roll.pdf`
+2. Leave the export folder as this directory (or pick Desktop)
+3. Start Secure Conversion
+
+You should get two rows (`RAMA RAO`, `LAKSHMI`) in an `.xlsx` file.
 
 ## What it extracts
 
@@ -13,37 +73,25 @@ From each voter block marked by `Age :` and `Gender:`:
 - House Number
 - Age (integer)
 - Gender
-- Active **Section No and Name** or **Street Name** from the page header (for example `1-SASI ROAD`)
+- Active **Section No and Name** or **Street Name** from the page header
 - Source page
-
-Excel columns match WIN WIN voter import aliases (`electoral_id`, names, age, address-related house numbers, section, page) closely enough to map in WIN WIN after conversion.
 
 ## Limits
 
 - Searchable (text) PDFs only. Image-scanned rolls are flagged, not OCR’d.
 - Password-protected PDFs are rejected until you unlock a local copy.
-- Processing is local only.
+- Processing is local only. There is no cloud upload.
 
-## Run
-
-Python 3.10+ with Tk (`python3-tk` on Debian/Ubuntu).
+## Command line (optional)
 
 ```bash
-cd voter-list-converter
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python gui_app.py
-```
-
-Or convert from the command line:
-
-```bash
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 python -c "from voter_parser import extract_voter_data; extract_voter_data('roll.pdf', output_path='roll.xlsx')"
 ```
 
-## Tests
+## Tests (developers)
 
 ```bash
+pip install -r requirements-dev.txt
 pytest -q
 ```
