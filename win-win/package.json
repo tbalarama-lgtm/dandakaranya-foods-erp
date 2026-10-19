@@ -19,6 +19,7 @@
     "test:ui-workspace": "node scripts/workspace-ui-journey.mjs",
     "test:ui-voters": "node scripts/voters-ui-journey.mjs",
     "test:ui-integrity": "node scripts/integrity-ui-journey.mjs",
+    "test:ui-reservations": "node scripts/reservations-ui-journey.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "node scripts/run-tests.mjs",
     "test:watch": "vitest",

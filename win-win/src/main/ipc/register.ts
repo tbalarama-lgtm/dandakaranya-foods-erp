@@ -110,6 +110,29 @@ import {
   validateSession
 } from "../services/import-voters";
 import {
+  approveMandalMapping,
+  cancelReservationImport,
+  commitReservationImport,
+  createReservationNotification,
+  createReservationSession,
+  createReviewedGeography,
+  exportReservationCsv,
+  exportReservationXlsx,
+  listReservationNotifications,
+  listReservationSeats,
+  reservationHistory,
+  reservationMatrix,
+  reservationSelectSheet,
+  reservationSessionView,
+  reservationSetContext,
+  reservationSetPartial,
+  reservationSummary,
+  seatsForUnit,
+  sessionMandalProposals,
+  supersedeReservationNotification,
+  verifyReservationNotification
+} from "../services/reservations";
+import {
   archiveEdition,
   archiveVoter,
   assignWardsBulk,
@@ -962,5 +985,176 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
       status: z.enum(DUPLICATE_PAIR_STATUSES)
     }),
     (input) => reviewDuplicate(db(), input as Parameters<typeof reviewDuplicate>[1])
+  );
+
+  handle(IpcChannel.reservationOpen, z.object({ constituencyId: z.string().min(1) }), async (input) => {
+    const constituencyId = (input as { constituencyId: string }).constituencyId;
+    const automated = !app.isPackaged ? process.env.WINWIN_TEST_RESERVATION_FILE : undefined;
+    let filePath: string | null = automated ?? null;
+    if (!filePath) {
+      const win = getWindow();
+      const options = {
+        filters: [{ name: "Excel", extensions: ["xlsx"] }],
+        properties: ["openFile" as const]
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      filePath = result.canceled ? null : result.filePaths[0] ?? null;
+    }
+    if (!filePath) return { cancelled: true as const };
+    return createReservationSession({ constituencyId, filePath });
+  });
+  handle(
+    IpcChannel.reservationSelectSheet,
+    z.object({ sessionId: z.string().min(1), sheetName: z.string().min(1) }),
+    (input) => reservationSelectSheet((input as { sessionId: string; sheetName: string }).sessionId, (input as { sheetName: string }).sheetName)
+  );
+  handle(
+    IpcChannel.reservationSetContext,
+    z.object({
+      sessionId: z.string().min(1),
+      electionId: z.string().min(1),
+      notificationId: z.string().optional(),
+      notificationName: z.string().optional(),
+      year: z.number().int().optional()
+    }),
+    (input) => reservationSetContext(db(), input as Parameters<typeof reservationSetContext>[1])
+  );
+  handle(
+    IpcChannel.reservationApproveMandal,
+    z.object({ sessionId: z.string().min(1), proposed: z.string().min(1), mandalId: z.string().nullable() }),
+    (input) =>
+      approveMandalMapping(
+        db(),
+        (input as { sessionId: string }).sessionId,
+        (input as { proposed: string }).proposed,
+        (input as { mandalId: string | null }).mandalId
+      )
+  );
+  handle(IpcChannel.reservationGeoPlan, z.object({ sessionId: z.string().min(1) }), (input) =>
+    reservationSessionView((input as { sessionId: string }).sessionId, db())
+  );
+  handle(
+    IpcChannel.reservationCreateGeo,
+    z.object({ sessionId: z.string().min(1), confirm: z.boolean() }),
+    (input) => createReviewedGeography(db(), (input as { sessionId: string }).sessionId, (input as { confirm: boolean }).confirm)
+  );
+  handle(
+    IpcChannel.reservationSetPartial,
+    z.object({ sessionId: z.string().min(1), allowPartial: z.boolean() }),
+    (input) => reservationSetPartial((input as { sessionId: string }).sessionId, (input as { allowPartial: boolean }).allowPartial)
+  );
+  handle(
+    IpcChannel.reservationCommit,
+    z.object({ sessionId: z.string().min(1), allowPartial: z.boolean().optional() }),
+    (input) =>
+      commitReservationImport(db(), (input as { sessionId: string }).sessionId, Boolean((input as { allowPartial?: boolean }).allowPartial))
+  );
+  handle(IpcChannel.reservationCancel, z.object({ sessionId: z.string().min(1) }), (input) =>
+    cancelReservationImport((input as { sessionId: string }).sessionId)
+  );
+  handle(IpcChannel.reservationSession, z.object({ sessionId: z.string().min(1) }), (input) =>
+    reservationSessionView((input as { sessionId: string }).sessionId, db())
+  );
+  handle(IpcChannel.reservationProposals, z.object({ sessionId: z.string().min(1) }), (input) =>
+    sessionMandalProposals((input as { sessionId: string }).sessionId, db())
+  );
+  handle(
+    IpcChannel.reservationNotificationList,
+    z.object({ constituencyId: z.string().min(1), electionId: z.string().optional() }),
+    (input) => listReservationNotifications(db(), input as { constituencyId: string; electionId?: string })
+  );
+  handle(
+    IpcChannel.reservationNotificationCreate,
+    z.object({
+      constituencyId: z.string().min(1),
+      electionId: z.string().min(1),
+      name: z.string().min(1),
+      year: z.number().int().optional(),
+      notificationReference: z.string().optional(),
+      notificationDate: z.string().nullable().optional(),
+      notes: z.string().optional()
+    }),
+    (input) => createReservationNotification(db(), input as Parameters<typeof createReservationNotification>[1])
+  );
+  handle(
+    IpcChannel.reservationVerify,
+    z.object({
+      id: z.string().min(1),
+      constituencyId: z.string().min(1),
+      notificationReference: z.string().min(1),
+      notes: z.string().min(1)
+    }),
+    (input) => verifyReservationNotification(db(), input as Parameters<typeof verifyReservationNotification>[1])
+  );
+  handle(
+    IpcChannel.reservationSupersede,
+    z.object({ id: z.string().min(1), constituencyId: z.string().min(1) }),
+    (input) => supersedeReservationNotification(db(), input as Parameters<typeof supersedeReservationNotification>[1])
+  );
+  handle(
+    IpcChannel.reservationList,
+    z.object({
+      constituencyId: z.string().min(1),
+      notificationId: z.string().optional(),
+      electionId: z.string().optional(),
+      year: z.number().optional(),
+      mandalId: z.string().optional(),
+      gramPanchayatId: z.string().optional(),
+      category: z.string().optional(),
+      womenReserved: z.union([z.boolean(), z.literal("")]).optional(),
+      reviewStatus: z.string().optional(),
+      seatType: z.union([z.enum(["sarpanch", "ward_member"]), z.literal("")]).optional(),
+      page: z.number().optional(),
+      pageSize: z.number().optional()
+    }),
+    (input) => listReservationSeats(db(), input as Parameters<typeof listReservationSeats>[1])
+  );
+  handle(
+    IpcChannel.reservationSummary,
+    z.object({
+      constituencyId: z.string().min(1),
+      notificationId: z.string().optional(),
+      electionId: z.string().optional()
+    }),
+    (input) => reservationSummary(db(), input as Parameters<typeof reservationSummary>[1])
+  );
+  handle(
+    IpcChannel.reservationMatrix,
+    z.object({ constituencyId: z.string().min(1), notificationId: z.string().min(1) }),
+    (input) => reservationMatrix(db(), input as Parameters<typeof reservationMatrix>[1])
+  );
+  handle(
+    IpcChannel.reservationExport,
+    z.object({
+      constituencyId: z.string().min(1),
+      notificationId: z.string().min(1),
+      kind: z.enum(["sarpanch", "ward_member", "matrix", "review"]),
+      format: z.enum(["csv", "xlsx"])
+    }),
+    async (input) => {
+      const payload = input as Parameters<typeof exportReservationCsv>[1] & { format: "csv" | "xlsx" };
+      const dest = await savePath(
+        "export",
+        payload.format === "xlsx" ? `reservations-${payload.kind}.xlsx` : `reservations-${payload.kind}.csv`,
+        payload.format === "xlsx" ? [{ name: "Excel", extensions: ["xlsx"] }] : [{ name: "CSV", extensions: ["csv"] }]
+      );
+      if (!dest) return { cancelled: true };
+      if (payload.format === "xlsx") fs.writeFileSync(dest, await exportReservationXlsx(db(), payload));
+      else fs.writeFileSync(dest, exportReservationCsv(db(), payload), "utf8");
+      return { cancelled: false, path: dest };
+    }
+  );
+  handle(IpcChannel.reservationHistory, z.object({ seatId: z.string().min(1) }), (input) =>
+    reservationHistory(db(), (input as { seatId: string }).seatId)
+  );
+  handle(
+    IpcChannel.reservationForUnit,
+    z.object({
+      constituencyId: z.string().min(1),
+      electionId: z.string().optional(),
+      gramPanchayatId: z.string().optional(),
+      wardId: z.string().optional()
+    }),
+    (input) => seatsForUnit(db(), input as Parameters<typeof seatsForUnit>[1])
   );
 }

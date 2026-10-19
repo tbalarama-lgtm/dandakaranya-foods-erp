@@ -120,7 +120,28 @@ const api: WinWinApi = {
     };
   },
   duplicateList: (input) => invoke(IpcChannel.duplicateList, input),
-  duplicateReview: (input) => invoke(IpcChannel.duplicateReview, input)
+  duplicateReview: (input) => invoke(IpcChannel.duplicateReview, input),
+  reservationOpen: (input) => invoke(IpcChannel.reservationOpen, input),
+  reservationSelectSheet: (input) => invoke(IpcChannel.reservationSelectSheet, input),
+  reservationSetContext: (input) => invoke(IpcChannel.reservationSetContext, input),
+  reservationApproveMandal: (input) => invoke(IpcChannel.reservationApproveMandal, input),
+  reservationGeoPlan: (input) => invoke(IpcChannel.reservationGeoPlan, input),
+  reservationCreateGeo: (input) => invoke(IpcChannel.reservationCreateGeo, input),
+  reservationSetPartial: (input) => invoke(IpcChannel.reservationSetPartial, input),
+  reservationCommit: (input) => invoke(IpcChannel.reservationCommit, input),
+  reservationCancel: (input) => invoke(IpcChannel.reservationCancel, input),
+  reservationSession: (input) => invoke(IpcChannel.reservationSession, input),
+  reservationProposals: (input) => invoke(IpcChannel.reservationProposals, input),
+  reservationNotificationList: (input) => invoke(IpcChannel.reservationNotificationList, input),
+  reservationNotificationCreate: (input) => invoke(IpcChannel.reservationNotificationCreate, input),
+  reservationVerify: (input) => invoke(IpcChannel.reservationVerify, input),
+  reservationSupersede: (input) => invoke(IpcChannel.reservationSupersede, input),
+  reservationList: (input) => invoke(IpcChannel.reservationList, input),
+  reservationSummary: (input) => invoke(IpcChannel.reservationSummary, input),
+  reservationMatrix: (input) => invoke(IpcChannel.reservationMatrix, input),
+  reservationExport: (input) => invoke(IpcChannel.reservationExport, input),
+  reservationHistory: (input) => invoke(IpcChannel.reservationHistory, input),
+  reservationForUnit: (input) => invoke(IpcChannel.reservationForUnit, input)
 };
 
 contextBridge.exposeInMainWorld("winwin", api);

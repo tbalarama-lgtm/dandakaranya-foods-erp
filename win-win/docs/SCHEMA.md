@@ -21,3 +21,7 @@ Migrations are applied in order. `schema_migrations` stores versions. `app_meta.
 ## v5 — electoral-roll assignment provenance
 
 Adds `ward_assignment_history.verification_source` and edition-scoped indexes. Existing roll tables from v3 are unchanged; no data is reset.
+
+## v6 — seat reservations
+
+`reservation_notifications`, `reservation_import_batches`, `seat_reservations`, `reservation_review_history`. Geography and voter tables are unchanged. Reservation categories describe seats only.

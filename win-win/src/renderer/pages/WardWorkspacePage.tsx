@@ -20,6 +20,7 @@ import type {
   WardOverview
 } from "@shared/types";
 import type { AppModel } from "../App";
+import { ReservationUnitCard } from "./ReservationsPage";
 import { Dialog } from "../Dialog";
 import {
   StatusBadge,
@@ -249,6 +250,11 @@ function OverviewTab({
           </NavLink>
         </div>
       </article>
+      <ReservationUnitCard
+        model={model}
+        gramPanchayatId={detail.ward.gramPanchayatId ?? undefined}
+        wardId={ctx.wardId}
+      />
       {detail.ward.classification === "rural" ? (
         <article className="card grid">
           <h2>Linked villages</h2>

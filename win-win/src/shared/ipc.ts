@@ -93,7 +93,28 @@ export const IpcChannel = {
   importTemplate: "winwin:importTemplate",
   importErrorReport: "winwin:importErrorReport",
   duplicateList: "winwin:duplicateList",
-  duplicateReview: "winwin:duplicateReview"
+  duplicateReview: "winwin:duplicateReview",
+  reservationOpen: "winwin:reservationOpen",
+  reservationSelectSheet: "winwin:reservationSelectSheet",
+  reservationSetContext: "winwin:reservationSetContext",
+  reservationApproveMandal: "winwin:reservationApproveMandal",
+  reservationGeoPlan: "winwin:reservationGeoPlan",
+  reservationCreateGeo: "winwin:reservationCreateGeo",
+  reservationSetPartial: "winwin:reservationSetPartial",
+  reservationCommit: "winwin:reservationCommit",
+  reservationCancel: "winwin:reservationCancel",
+  reservationSession: "winwin:reservationSession",
+  reservationProposals: "winwin:reservationProposals",
+  reservationNotificationList: "winwin:reservationNotificationList",
+  reservationNotificationCreate: "winwin:reservationNotificationCreate",
+  reservationVerify: "winwin:reservationVerify",
+  reservationSupersede: "winwin:reservationSupersede",
+  reservationList: "winwin:reservationList",
+  reservationSummary: "winwin:reservationSummary",
+  reservationMatrix: "winwin:reservationMatrix",
+  reservationExport: "winwin:reservationExport",
+  reservationHistory: "winwin:reservationHistory",
+  reservationForUnit: "winwin:reservationForUnit"
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -361,6 +382,86 @@ export interface WinWinApi {
     constituencyId: string;
     status: import("./types").DuplicatePairStatus;
   }) => Promise<void>;
+  reservationOpen: (input: { constituencyId: string }) => Promise<
+    | { cancelled: true }
+    | import("./types").ReservationImportSession
+  >;
+  reservationSelectSheet: (input: { sessionId: string; sheetName: string }) => Promise<import("./types").ReservationImportSession>;
+  reservationSetContext: (input: {
+    sessionId: string;
+    electionId: string;
+    notificationId?: string;
+    notificationName?: string;
+    year?: number;
+  }) => Promise<import("./types").ReservationImportSession>;
+  reservationApproveMandal: (input: {
+    sessionId: string;
+    proposed: string;
+    mandalId: string | null;
+  }) => Promise<import("./types").ReservationImportSession>;
+  reservationGeoPlan: (input: { sessionId: string }) => Promise<import("./types").ReservationImportSession>;
+  reservationCreateGeo: (input: { sessionId: string; confirm: boolean }) => Promise<import("./types").ReservationImportSession>;
+  reservationSetPartial: (input: { sessionId: string; allowPartial: boolean }) => Promise<import("./types").ReservationImportSession>;
+  reservationCommit: (input: { sessionId: string; allowPartial?: boolean }) => Promise<import("./types").ReservationCommitResult>;
+  reservationCancel: (input: { sessionId: string }) => Promise<void>;
+  reservationSession: (input: { sessionId: string }) => Promise<import("./types").ReservationImportSession>;
+  reservationProposals: (input: { sessionId: string }) => Promise<import("./types").ReservationMandalProposal[]>;
+  reservationNotificationList: (input: {
+    constituencyId: string;
+    electionId?: string;
+  }) => Promise<import("./types").ReservationNotification[]>;
+  reservationNotificationCreate: (input: {
+    constituencyId: string;
+    electionId: string;
+    name: string;
+    year?: number;
+    notificationReference?: string;
+    notificationDate?: string | null;
+    notes?: string;
+  }) => Promise<import("./types").ReservationNotification>;
+  reservationVerify: (input: {
+    id: string;
+    constituencyId: string;
+    notificationReference: string;
+    notes: string;
+  }) => Promise<import("./types").ReservationNotification>;
+  reservationSupersede: (input: { id: string; constituencyId: string }) => Promise<import("./types").ReservationNotification>;
+  reservationList: (input: {
+    constituencyId: string;
+    notificationId?: string;
+    electionId?: string;
+    year?: number;
+    mandalId?: string;
+    gramPanchayatId?: string;
+    category?: string;
+    womenReserved?: boolean | "";
+    reviewStatus?: string;
+    seatType?: import("./types").ReservationSeatType | "";
+    page?: number;
+    pageSize?: number;
+  }) => Promise<import("./types").PagedResult<import("./types").ReservationSeat>>;
+  reservationSummary: (input: {
+    constituencyId: string;
+    notificationId?: string;
+    electionId?: string;
+  }) => Promise<import("./types").ReservationSummary>;
+  reservationMatrix: (input: {
+    constituencyId: string;
+    notificationId: string;
+  }) => Promise<{ wardNumbers: string[]; rows: import("./types").ReservationMatrixRow[] }>;
+  reservationExport: (input: {
+    constituencyId: string;
+    notificationId: string;
+    kind: "sarpanch" | "ward_member" | "matrix" | "review";
+    format: "csv" | "xlsx";
+  }) => Promise<{ cancelled: boolean; path?: string }>;
+  reservationHistory: (input: { seatId: string }) => Promise<import("./types").ReservationHistoryItem[]>;
+  reservationForUnit: (input: {
+    constituencyId: string;
+    electionId?: string;
+    gramPanchayatId?: string;
+    wardId?: string;
+  }) => Promise<import("./types").ReservationSeat[]>;
 }
 
 export interface NamedInput {

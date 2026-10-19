@@ -477,6 +477,107 @@ ALTER TABLE ward_assignment_history ADD COLUMN verification_source TEXT NOT NULL
 CREATE INDEX ix_voter_edition_active ON voter_entries(roll_edition_id, archived, assigned_ward_id);
 CREATE INDEX ix_import_edition_hash ON import_batches(constituency_id, roll_edition_id, file_sha256, status);
 `
+  },
+  {
+    version: 6,
+    sql: `
+CREATE TABLE reservation_notifications (
+  id TEXT PRIMARY KEY,
+  constituency_id TEXT NOT NULL REFERENCES assembly_constituencies(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  election_id TEXT NOT NULL REFERENCES elections(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  boundary_version_id TEXT NOT NULL REFERENCES boundary_versions(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  year INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  notification_reference TEXT NOT NULL DEFAULT '',
+  notification_date TEXT,
+  district_source TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL CHECK (status IN ('draft','verified','superseded')),
+  notes TEXT NOT NULL DEFAULT '',
+  verified_at TEXT,
+  verified_notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX ix_res_note_election ON reservation_notifications(election_id, year, status);
+
+CREATE TABLE reservation_import_batches (
+  id TEXT PRIMARY KEY,
+  notification_id TEXT NOT NULL REFERENCES reservation_notifications(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  constituency_id TEXT NOT NULL REFERENCES assembly_constituencies(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  file_name TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  worksheet_name TEXT NOT NULL,
+  source_year INTEGER,
+  row_count INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('committed','cancelled','failed')),
+  district_source TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  committed_at TEXT
+);
+
+CREATE UNIQUE INDEX ux_res_import_fingerprint
+  ON reservation_import_batches(notification_id, fingerprint)
+  WHERE status = 'committed';
+
+CREATE TABLE seat_reservations (
+  id TEXT PRIMARY KEY,
+  notification_id TEXT NOT NULL REFERENCES reservation_notifications(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  import_batch_id TEXT REFERENCES reservation_import_batches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  election_id TEXT NOT NULL REFERENCES elections(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  year INTEGER NOT NULL,
+  seat_type TEXT NOT NULL CHECK (seat_type IN ('sarpanch','ward_member')),
+  gram_panchayat_id TEXT REFERENCES gram_panchayats(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ward_id TEXT REFERENCES wards(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  source_mandal_label TEXT NOT NULL,
+  source_gp_label TEXT NOT NULL,
+  source_ward_number TEXT NOT NULL DEFAULT '',
+  declared_ward_count INTEGER,
+  original_code TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL CHECK (category IN ('UR','BC','SC','ST','unknown','not_recorded')),
+  women_reserved INTEGER NOT NULL CHECK (women_reserved IN (0,1)),
+  review_status TEXT NOT NULL,
+  source_filename TEXT NOT NULL DEFAULT '',
+  source_worksheet TEXT NOT NULL DEFAULT '',
+  source_row INTEGER,
+  source_cell TEXT NOT NULL DEFAULT '',
+  verification_notes TEXT NOT NULL DEFAULT '',
+  reviewed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (
+    (seat_type = 'sarpanch' AND ward_id IS NULL)
+    OR seat_type = 'ward_member'
+  )
+);
+
+CREATE UNIQUE INDEX ux_res_sarpanch_gp
+  ON seat_reservations(notification_id, gram_panchayat_id)
+  WHERE seat_type = 'sarpanch' AND gram_panchayat_id IS NOT NULL;
+
+CREATE UNIQUE INDEX ux_res_ward_member
+  ON seat_reservations(notification_id, ward_id)
+  WHERE seat_type = 'ward_member' AND ward_id IS NOT NULL;
+
+CREATE UNIQUE INDEX ux_res_source_seat
+  ON seat_reservations(notification_id, seat_type, source_mandal_label, source_gp_label, source_ward_number);
+
+CREATE INDEX ix_res_lookup ON seat_reservations(notification_id, seat_type, review_status, category);
+CREATE INDEX ix_res_gp ON seat_reservations(gram_panchayat_id, seat_type);
+CREATE INDEX ix_res_ward ON seat_reservations(ward_id);
+
+CREATE TABLE reservation_review_history (
+  id TEXT PRIMARY KEY,
+  seat_id TEXT NOT NULL REFERENCES seat_reservations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  notification_id TEXT NOT NULL REFERENCES reservation_notifications(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  changed_at TEXT NOT NULL,
+  action TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  field_names TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE INDEX ix_res_hist ON reservation_review_history(seat_id, changed_at);
+`
   }
 ];
 
@@ -497,6 +598,8 @@ export function applyMigrations(db: Database.Database): void {
   }
   backfillContactLinks(db);
   seedMeta(db);
+  db.prepare("UPDATE app_meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
+  db.prepare("UPDATE app_meta SET value = ? WHERE key = 'app_version'").run(APP_VERSION);
 }
 
 function backfillContactLinks(db: Database.Database): void {

@@ -115,7 +115,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
         </label>
         <label>
           Type
-          <select value={type} onChange={(e) => setType(e.target.value as ElectionType)}>
+          <select id="election-type" data-testid="election-type" value={type} onChange={(e) => setType(e.target.value as ElectionType)}>
             <option value="assembly">Assembly</option>
             <option value="gram_panchayat">Gram Panchayat</option>
             <option value="municipality">Municipality</option>
@@ -125,7 +125,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
         </label>
         <label>
           Year
-          <input type="number" required value={year} onChange={(e) => setYear(Number(e.target.value))} />
+          <input id="election-year" data-testid="election-year" type="number" required value={year} onChange={(e) => setYear(Number(e.target.value))} />
         </label>
         <label>
           Status
@@ -144,6 +144,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
             <label key={ward.id}>
               <input
                 type="checkbox"
+                data-testid={`election-ward-${ward.id}`}
                 checked={selected.includes(ward.id)}
                 onChange={(e) =>
                   setSelected((curr) => (e.target.checked ? [...curr, ward.id] : curr.filter((id) => id !== ward.id)))

@@ -20,6 +20,7 @@ import { ImportPage } from "./pages/ImportPage";
 import { VotersPage } from "./pages/VotersPage";
 import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
+import { ReservationsPage } from "./pages/ReservationsPage";
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return `nav-link${isActive ? " active" : ""}`;
@@ -152,6 +153,9 @@ export function App(): JSX.Element {
           <NavLink end data-testid="nav-coverage" className={navClass} to="/coverage">
             Coverage
           </NavLink>
+          <NavLink data-testid="nav-reservations" className={navClass} to="/reservations">
+            Seat Reservations
+          </NavLink>
           <NavLink end data-testid="nav-backup" className={navClass} to="/backup">
             {t(locale, "backup")}
           </NavLink>
@@ -198,6 +202,7 @@ export function App(): JSX.Element {
           <Route path="/voters" element={<VotersPage model={model} />} />
           <Route path="/import" element={<ImportPage model={model} />} />
           <Route path="/coverage" element={<CoveragePage model={model} />} />
+          <Route path="/reservations/*" element={<ReservationsPage model={model} />} />
           <Route path="/backup" element={<BackupPage model={model} />} />
           <Route path="/settings" element={<SettingsPage model={model} />} />
         </Routes>

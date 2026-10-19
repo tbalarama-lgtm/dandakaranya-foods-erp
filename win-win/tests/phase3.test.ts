@@ -130,7 +130,7 @@ describe("Phase 3 electoral roll", () => {
     applyMigrations(db);
     const version = (db.prepare("SELECT MAX(version) AS v FROM schema_migrations").get() as { v: number }).v;
     expect(version).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(5);
+    expect(SCHEMA_VERSION).toBe(6);
     const cols = db.prepare("PRAGMA table_info(ward_assignment_history)").all() as Array<{ name: string }>;
     expect(cols.some((c) => c.name === "verification_source")).toBe(true);
     const voter = db.prepare("SELECT source_name, source_electoral_id FROM voter_entries WHERE id = 'v1'").get() as {

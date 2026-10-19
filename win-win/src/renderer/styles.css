@@ -409,6 +409,18 @@ a.btn, .tab { text-decoration: none; }
     scroll-behavior: auto !important;
   }
 }
+.seat-code { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.matrix-wrap { overflow-x: auto; }
+.matrix-table { min-width: 960px; }
+.matrix-table .sticky-col {
+  position: sticky;
+  background: var(--color-surface);
+  z-index: 1;
+}
+.matrix-table .c1 { left: 0; min-width: 7rem; }
+.matrix-table .c2 { left: 7rem; min-width: 9rem; }
+.matrix-table .c3 { left: 16rem; min-width: 8rem; }
+.matrix-table .c4 { left: 24rem; min-width: 5.5rem; }
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 188px minmax(0, 1fr); }
   .two-col { grid-template-columns: 1fr; }
