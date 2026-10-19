@@ -14,8 +14,10 @@ import type {
   GeoTeamMember,
   ResolvedScope
 } from "@shared/types";
+import type { OrgGeoType } from "@shared/types";
 import { AppError } from "../errors";
 import { resolveScope } from "./coverage";
+import { orgAssociationForGeo } from "./org-posts";
 
 const OPEN_ISSUES = "('open','in_progress')";
 const OPEN_TASKS = "('open','in_progress')";
@@ -1352,7 +1354,12 @@ export function geoDashboard(db: Database.Database, input: GeoDashboardQuery): G
     { label: "Voters", href: `/voters${qs({ edition: input.rollEditionId })}` }
   ];
   if (input.level === "assembly") {
-    shortcuts.push({ label: "Rural records", href: "/rural" }, { label: "Urban records", href: "/urban" }, { label: "Seat reservations", href: "/reservations" });
+    shortcuts.push(
+      { label: "Rural records", href: "/rural" },
+      { label: "Urban records", href: "/urban" },
+      { label: "Seat reservations", href: "/reservations" },
+      { label: "Organization posts", href: "/org-posts" }
+    );
   }
   if (input.level.endsWith("ward") && input.unitId) {
     shortcuts.push(
@@ -1417,9 +1424,19 @@ export function geoDashboard(db: Database.Database, input: GeoDashboardQuery): G
     reviewItems,
     shortcuts,
     reservation,
+    organizationAssociation: orgAssociationForGeo(db, orgGeoType(input.level), input.unitId || input.constituencyId),
     team,
     villages: ident.villages
   };
+}
+
+function orgGeoType(level: GeoDashboardLevel): OrgGeoType {
+  if (level === "assembly") return "assembly_constituency";
+  if (level === "mandal") return "mandal";
+  if (level === "gram_panchayat") return "gram_panchayat";
+  if (level === "urban_local_body") return "urban_local_body";
+  if (level === "rural_ward") return "rural_ward";
+  return "urban_ward";
 }
 
 export type { GeoDashboardLevel };

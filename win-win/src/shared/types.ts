@@ -443,6 +443,7 @@ export interface GeoDashboard {
   reviewItems: GeoReviewItem[];
   shortcuts: Array<{ label: string; href: string }>;
   reservation: GeoReservationSnapshot | null;
+  organizationAssociation: OrgGeoAssociation;
   team: GeoTeamMember[];
   villages: Array<{ id: string; name: string; nameTe: string }>;
 }
@@ -929,4 +930,196 @@ export interface ReservationCommitResult {
   conflicting: number;
   batchId: string;
   notificationId: string;
+}
+
+export type OrgUnitKind = "committee" | "unit";
+export type OrgUnitLevel =
+  | "assembly_constituency"
+  | "mandal"
+  | "gram_panchayat"
+  | "urban_local_body"
+  | "ward";
+export type OrgGeoType =
+  | "assembly_constituency"
+  | "mandal"
+  | "gram_panchayat"
+  | "urban_local_body"
+  | "rural_ward"
+  | "urban_ward";
+export type OrgAppointmentStatus = "scheduled" | "active" | "ended" | "resigned" | "cancelled";
+export type OrgImportKind = "units" | "posts" | "appointments";
+export type OrgOccupancy = "verified_vacancy" | "appointment_recorded" | "status_unknown" | "overfilled";
+
+export interface Organization {
+  id: string;
+  name: string;
+  nameTe: string;
+  notes: string;
+  sourceReference: string;
+  verificationStatus: VerificationStatus;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationWing {
+  id: string;
+  organizationId: string;
+  name: string;
+  notes: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationUnitGeo {
+  id: string;
+  unitId: string;
+  geoType: OrgGeoType;
+  geoId: string;
+  notes: string;
+}
+
+export interface OrganizationUnit {
+  id: string;
+  organizationId: string;
+  wingId: string | null;
+  parentUnitId: string | null;
+  name: string;
+  unitKind: OrgUnitKind;
+  level: OrgUnitLevel;
+  sourceReference: string;
+  verificationStatus: VerificationStatus;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  wingName?: string | null;
+  parentName?: string | null;
+  geo: OrganizationUnitGeo[];
+}
+
+export interface OrganizationPost {
+  id: string;
+  organizationId: string;
+  unitId: string;
+  wingId: string | null;
+  title: string;
+  authorizedPositions: number | null;
+  parentPostId: string | null;
+  sourceReference: string;
+  verificationStatus: VerificationStatus;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  unitName?: string;
+  wingName?: string | null;
+  parentTitle?: string | null;
+}
+
+export interface OrganizationAppointment {
+  id: string;
+  postId: string;
+  personId: string;
+  officeHolderName: string;
+  membershipReference: string;
+  appointmentReference: string;
+  appointmentDate: string | null;
+  startDate: string;
+  endDate: string | null;
+  status: OrgAppointmentStatus;
+  consentSource: string;
+  verificationStatus: VerificationStatus;
+  verificationNotes: string;
+  sourceFilename: string;
+  sourceRow: number | null;
+  createdAt: string;
+  updatedAt: string;
+  postTitle?: string;
+  unitName?: string;
+}
+
+export interface OrganizationAppointmentHistory {
+  id: string;
+  appointmentId: string;
+  changedAt: string;
+  action: string;
+  notes: string;
+  fieldNames: string[];
+}
+
+export interface OrgPostCapacity {
+  postId: string;
+  title: string;
+  unitName: string;
+  organizationId: string;
+  authorizedPositions: number | null;
+  coveringCount: number;
+  verifiedCoveringCount: number;
+  occupancy: OrgOccupancy;
+  vacantPositions: number | null;
+  reason: string;
+  overlapping: boolean;
+}
+
+export interface OrgReportingNode {
+  post: OrganizationPost;
+  children: OrgReportingNode[];
+}
+
+export interface OrgOverview {
+  organizations: number;
+  units: number;
+  posts: number;
+  currentOfficeHolders: number;
+  verifiedVacancies: number;
+  unknownStatus: number;
+  upcomingExpiry30: number;
+  overlappingAppointments: number;
+}
+
+export interface OrgGeoAssociation {
+  associatedUnits: number;
+  associatedPosts: number;
+  currentOfficeHolders: number;
+  unknownStatusPosts: number;
+  verifiedVacancies: number;
+  href: string;
+}
+
+export interface OrgImportPreviewRow {
+  index: number;
+  values: Record<string, string>;
+  issues: string[];
+  duplicate: boolean;
+  overlapping: boolean;
+  importable: boolean;
+}
+
+export interface OrgImportSession {
+  sessionId: string;
+  organizationId: string;
+  kind: OrgImportKind;
+  fileName: string;
+  headers: string[];
+  mapping: Record<string, string | null>;
+  preview: OrgImportPreviewRow[];
+  eligibleCount: number;
+  unresolvedCount: number;
+  duplicateCount: number;
+  overlapCount: number;
+}
+
+export interface OrgImportCommitResult {
+  imported: number;
+  unresolved: number;
+  duplicates: number;
+  overlaps: number;
+  batchId: string;
+}
+
+export interface OrgExportInput {
+  organizationId: string;
+  kind: OrgImportKind;
+  format: "csv" | "xlsx";
+  fields: string[];
 }

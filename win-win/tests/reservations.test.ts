@@ -386,7 +386,7 @@ describe("Seat reservation import isolation", () => {
     await restoreBackup(manager, dest, { skipConfirm: true });
     const restored = manager.get().prepare("SELECT COUNT(*) AS c FROM seat_reservations").get() as { c: number };
     expect(restored.c).toBeGreaterThan(0);
-    expect(SCHEMA_VERSION).toBe(6);
+    expect(SCHEMA_VERSION).toBe(7);
     manager.close();
   });
 

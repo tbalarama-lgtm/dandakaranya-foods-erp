@@ -578,6 +578,128 @@ CREATE TABLE reservation_review_history (
 
 CREATE INDEX ix_res_hist ON reservation_review_history(seat_id, changed_at);
 `
+  },
+  {
+    version: 7,
+    sql: `
+CREATE TABLE organizations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  name_te TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  source_reference TEXT NOT NULL DEFAULT '',
+  verification_status TEXT NOT NULL CHECK (verification_status IN ('unverified','verified','needs_review')),
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE organization_wings (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  name TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX ix_org_wings ON organization_wings(organization_id, archived, name);
+
+CREATE TABLE organization_units (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  wing_id TEXT REFERENCES organization_wings(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  parent_unit_id TEXT REFERENCES organization_units(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  name TEXT NOT NULL,
+  unit_kind TEXT NOT NULL CHECK (unit_kind IN ('committee','unit')),
+  level TEXT NOT NULL CHECK (level IN ('assembly_constituency','mandal','gram_panchayat','urban_local_body','ward')),
+  source_reference TEXT NOT NULL DEFAULT '',
+  verification_status TEXT NOT NULL CHECK (verification_status IN ('unverified','verified','needs_review')),
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX ix_org_units ON organization_units(organization_id, level, archived);
+
+CREATE TABLE organization_unit_geo (
+  id TEXT PRIMARY KEY,
+  unit_id TEXT NOT NULL REFERENCES organization_units(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  geo_type TEXT NOT NULL CHECK (geo_type IN ('assembly_constituency','mandal','gram_panchayat','urban_local_body','rural_ward','urban_ward')),
+  geo_id TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  UNIQUE (unit_id, geo_type, geo_id)
+);
+
+CREATE INDEX ix_org_unit_geo ON organization_unit_geo(geo_type, geo_id);
+
+CREATE TABLE organization_posts (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  unit_id TEXT NOT NULL REFERENCES organization_units(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  wing_id TEXT REFERENCES organization_wings(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  title TEXT NOT NULL,
+  authorized_positions INTEGER,
+  parent_post_id TEXT REFERENCES organization_posts(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  source_reference TEXT NOT NULL DEFAULT '',
+  verification_status TEXT NOT NULL CHECK (verification_status IN ('unverified','verified','needs_review')),
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (authorized_positions IS NULL OR authorized_positions >= 0)
+);
+
+CREATE INDEX ix_org_posts ON organization_posts(organization_id, unit_id, archived);
+
+CREATE TABLE organization_appointments (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL REFERENCES organization_posts(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  membership_reference TEXT NOT NULL DEFAULT '',
+  appointment_reference TEXT NOT NULL DEFAULT '',
+  appointment_date TEXT,
+  start_date TEXT NOT NULL,
+  end_date TEXT,
+  status TEXT NOT NULL CHECK (status IN ('scheduled','active','ended','resigned','cancelled')),
+  consent_source TEXT NOT NULL DEFAULT '',
+  verification_status TEXT NOT NULL CHECK (verification_status IN ('unverified','verified','needs_review')),
+  verification_notes TEXT NOT NULL DEFAULT '',
+  source_filename TEXT NOT NULL DEFAULT '',
+  source_row INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX ix_org_appt_post ON organization_appointments(post_id, status);
+CREATE INDEX ix_org_appt_person ON organization_appointments(person_id);
+
+CREATE TABLE organization_appointment_history (
+  id TEXT PRIMARY KEY,
+  appointment_id TEXT NOT NULL REFERENCES organization_appointments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  changed_at TEXT NOT NULL,
+  action TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  field_names TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE INDEX ix_org_appt_hist ON organization_appointment_history(appointment_id, changed_at);
+
+CREATE TABLE organization_import_batches (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('units','posts','appointments')),
+  file_name TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('committed','cancelled','failed')),
+  created_at TEXT NOT NULL,
+  committed_at TEXT
+);
+
+CREATE UNIQUE INDEX ux_org_import_fingerprint
+  ON organization_import_batches(organization_id, kind, fingerprint)
+  WHERE status = 'committed';
+`
   }
 ];
 

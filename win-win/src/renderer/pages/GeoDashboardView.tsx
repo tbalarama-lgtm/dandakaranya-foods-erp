@@ -280,6 +280,22 @@ export function GeoDashboardView({
               )}
             </article>
           ) : null}
+          <article className="card grid" data-testid="geo-org-posts">
+            <h2>Organization posts associated with this area</h2>
+            <p className="history">
+              Only units with an explicit geographic association are counted. Organizational boundaries are not assumed to match this administrative unit.
+            </p>
+            <p>
+              Associated units {data.organizationAssociation.associatedUnits} · Posts{" "}
+              {data.organizationAssociation.associatedPosts} · Current office holders{" "}
+              {data.organizationAssociation.currentOfficeHolders} · Verified vacancies{" "}
+              {data.organizationAssociation.verifiedVacancies} · Status unknown{" "}
+              {data.organizationAssociation.unknownStatusPosts}
+            </p>
+            <Link className="btn secondary" to={data.organizationAssociation.href}>
+              Open organization posts
+            </Link>
+          </article>
           {filteredDirectories.map((directory) => (
             <DirectoryCard
               key={directory.key}
