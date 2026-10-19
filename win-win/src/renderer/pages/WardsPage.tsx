@@ -92,7 +92,7 @@ export function WardsPage({ model }: { model: AppModel }): JSX.Element {
               <th>Type</th>
               <th>Parent</th>
               <th>Coverage</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>

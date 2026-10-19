@@ -28,7 +28,7 @@ import type { DatabaseManager } from "../db/connection";
 import { listAudit } from "../services/audit";
 import { createBackupWithDialog, restoreBackupWithDialog, type BackupDialogs } from "../services/backup";
 import { deleteCoverage, listCoverage, resolveScope, setCoverage } from "../services/coverage";
-import { dashboardCounts } from "../services/dashboard";
+import { dashboardAttention, dashboardCounts } from "../services/dashboard";
 import { loadDemoData } from "../services/demo";
 import { archiveElection, createElection, getElection, listElections, updateElection } from "../services/elections";
 import {
@@ -230,6 +230,10 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
   handle(IpcChannel.dashboardCounts, z.object({ constituencyId: z.string(), boundaryVersionId: z.string() }), (input) => {
     const { constituencyId, boundaryVersionId } = input as { constituencyId: string; boundaryVersionId: string };
     return dashboardCounts(db(), constituencyId, boundaryVersionId);
+  });
+  handle(IpcChannel.dashboardAttention, z.object({ constituencyId: z.string().min(1) }), (input) => {
+    const { constituencyId } = input as { constituencyId: string };
+    return dashboardAttention(db(), constituencyId);
   });
 
   handle(IpcChannel.boundaryList, z.object({}), () => listBoundaries(db()));
@@ -935,6 +939,7 @@ export function registerIpc(manager: DatabaseManager, getWindow: () => BrowserWi
             identifierReviewCount: 0,
             emptySkipped: 0,
             eligibleCount: 0,
+            excludedCount: 0,
             issues: issues ?? []
           });
       fs.writeFileSync(dest, csv, "utf8");

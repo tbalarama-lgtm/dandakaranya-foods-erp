@@ -21,6 +21,10 @@ import { VotersPage } from "./pages/VotersPage";
 import { WardWorkspacePage } from "./pages/WardWorkspacePage";
 import { WardsPage } from "./pages/WardsPage";
 
+function navClass({ isActive }: { isActive: boolean }): string {
+  return `nav-link${isActive ? " active" : ""}`;
+}
+
 export interface AppModel {
   api: typeof window.winwin;
   info: AppInfo | null;
@@ -123,35 +127,35 @@ export function App(): JSX.Element {
         <div className="brand">
           WIN <span>WIN</span>
         </div>
-        <nav>
-          <NavLink data-testid="nav-dashboard" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/">
+        <nav aria-label="Main">
+          <NavLink end data-testid="nav-dashboard" className={navClass} to="/">
             {t(locale, "dashboard")}
           </NavLink>
-          <NavLink data-testid="nav-elections" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/elections">
+          <NavLink data-testid="nav-elections" className={navClass} to="/elections">
             {t(locale, "elections")}
           </NavLink>
-          <NavLink data-testid="nav-rural" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/rural">
+          <NavLink data-testid="nav-rural" className={navClass} to="/rural">
             {t(locale, "rural")}
           </NavLink>
-          <NavLink data-testid="nav-urban" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/urban">
+          <NavLink data-testid="nav-urban" className={navClass} to="/urban">
             {t(locale, "urban")}
           </NavLink>
-          <NavLink data-testid="nav-wards" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/wards">
+          <NavLink data-testid="nav-wards" className={navClass} to="/wards">
             {t(locale, "allWards")}
           </NavLink>
-          <NavLink data-testid="nav-voters" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/voters">
+          <NavLink end data-testid="nav-voters" className={navClass} to="/voters">
             Voters
           </NavLink>
-          <NavLink data-testid="nav-import" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/import">
+          <NavLink end data-testid="nav-import" className={navClass} to="/import">
             Import
           </NavLink>
-          <NavLink data-testid="nav-coverage" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/coverage">
+          <NavLink end data-testid="nav-coverage" className={navClass} to="/coverage">
             Coverage
           </NavLink>
-          <NavLink data-testid="nav-backup" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/backup">
+          <NavLink end data-testid="nav-backup" className={navClass} to="/backup">
             {t(locale, "backup")}
           </NavLink>
-          <NavLink data-testid="nav-settings" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="/settings">
+          <NavLink end data-testid="nav-settings" className={navClass} to="/settings">
             {t(locale, "settings")}
           </NavLink>
         </nav>

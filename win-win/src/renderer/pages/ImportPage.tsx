@@ -412,10 +412,21 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
           {step >= 5 && validated && step < 7 ? (
             <>
               <p data-testid="import-validate-summary">
-                Eligible {validated.eligibleCount} · unassigned {validated.unassignedCount} · rejected {validated.rejectedCount} ·
-                identifier review {validated.identifierReviewCount} · empty skipped {validated.emptySkipped} · mapped{" "}
-                {validated.assignedCount} · issues {validated.errorCount}
+                Will import {validated.eligibleCount} · excluded {validated.excludedCount} · unassigned {validated.unassignedCount} ·
+                mapped {validated.assignedCount} · rejected {validated.rejectedCount} · identifier review{" "}
+                {validated.identifierReviewCount} · empty skipped {validated.emptySkipped} · issues {validated.errorCount}
               </p>
+              {validated.eligibleCount === 0 ? (
+                <p className="error" data-testid="import-confirm-blocked">
+                  Nothing can be imported yet. Assign a ward or choose Keep unassigned for ambiguous or invalid rows, and finish
+                  identifier review. Empty rows are skipped.
+                </p>
+              ) : (
+                <p className="lede" data-testid="import-confirm-counts">
+                  Confirmation will import {validated.eligibleCount} record{validated.eligibleCount === 1 ? "" : "s"} and exclude{" "}
+                  {validated.excludedCount}.
+                </p>
+              )}
               <div className="row">
                 <button
                   className="btn secondary"
@@ -433,7 +444,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th></th>
+                        <th>Select</th>
                         <th>Row</th>
                         <th>Field</th>
                         <th>Type</th>
@@ -493,7 +504,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
               <table className="table" data-testid="import-review-table">
                 <thead>
                   <tr>
-                    <th></th>
+                    <th>Select</th>
                     <th>Row</th>
                     <th>Name</th>
                     <th>ID</th>
@@ -553,7 +564,7 @@ export function ImportPage({ model }: { model: AppModel }): JSX.Element {
                   className="btn"
                   type="button"
                   data-testid="import-commit"
-                  disabled={validated.identifierReviewCount > 0}
+                  disabled={validated.eligibleCount === 0 || validated.identifierReviewCount > 0}
                   onClick={() => void commit()}
                 >
                   Confirm import

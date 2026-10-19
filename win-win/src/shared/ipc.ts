@@ -4,6 +4,7 @@ export const IpcChannel = {
   settingsGet: "winwin:settingsGet",
   settingsUpdate: "winwin:settingsUpdate",
   dashboardCounts: "winwin:dashboardCounts",
+  dashboardAttention: "winwin:dashboardAttention",
   boundaryList: "winwin:boundaryList",
   boundaryCreate: "winwin:boundaryCreate",
   boundaryUpdate: "winwin:boundaryUpdate",
@@ -106,6 +107,7 @@ export interface WinWinApi {
     constituencyId: string;
     boundaryVersionId: string;
   }) => Promise<import("./types").DashboardCounts>;
+  dashboardAttention: (input: { constituencyId: string }) => Promise<import("./types").DashboardAttention>;
   boundaryList: () => Promise<import("./types").BoundaryVersion[]>;
   boundaryCreate: (input: {
     name: string;

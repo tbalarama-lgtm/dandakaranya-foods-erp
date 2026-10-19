@@ -490,16 +490,33 @@ function identifierMessage(field: IdentifierField, cell: CellRecord): string {
   return `${label} came from a numeric cell (raw ${cell.raw}, displayed ${cell.displayed || "n/a"}). Leading zeros cannot be recovered. Accept the raw value or type the exact source text.`;
 }
 
+function blockingForCommit(row: StagedImportRow): boolean {
+  if (row.empty) return false;
+  if (row.identifierReview === "needed") return true;
+  return row.errors.some(
+    (e) =>
+      e.startsWith("Row needs") ||
+      e.includes("spreadsheet formula") ||
+      (e.includes("matches more than one ward") && !row.assignedWardId) ||
+      (e.includes("not in the selected constituency coverage") && !row.assignedWardId && row.wardMatch === "invalid")
+  );
+}
+
+function isImportable(row: StagedImportRow): boolean {
+  return !row.empty && !blockingForCommit(row);
+}
+
 function summarize(session: ImportSession): ImportValidateResult {
   const staged = session.staged;
   const issues: ImportValidationIssue[] = staged.flatMap((row) =>
     row.errors.map((message) => ({ sourceRowNumber: row.sourceRowNumber, field: "row", message }))
   );
   const rejectedCount = staged.filter((row) => row.rejected).length;
-  const eligible = staged.filter((row) => !row.empty && !row.rejected);
+  const eligible = staged.filter(isImportable);
+  const dataRows = staged.filter((row) => !row.empty);
   return {
-    rows: staged.filter((row) => !row.empty).slice(0, 100),
-    rowsTruncated: staged.filter((row) => !row.empty).length > 100,
+    rows: dataRows.slice(0, 100),
+    rowsTruncated: dataRows.length > 100,
     errorCount: issues.length,
     issues: issues.slice(0, 200),
     assignedCount: eligible.filter((r) => r.assignedWardId).length,
@@ -508,7 +525,8 @@ function summarize(session: ImportSession): ImportValidateResult {
     rejectedCount,
     identifierReviewCount: staged.filter((r) => r.identifierReview === "needed").length,
     emptySkipped: staged.filter((r) => r.empty).length,
-    eligibleCount: eligible.length
+    eligibleCount: eligible.length,
+    excludedCount: dataRows.length - eligible.length
   };
 }
 
@@ -752,15 +770,7 @@ function recomputeIdentifierAndWards(db: Database.Database, session: ImportSessi
 }
 
 function refreshRejected(row: StagedImportRow): void {
-  row.rejected =
-    row.identifierReview === "needed" ||
-    row.errors.some(
-      (e) =>
-        e.startsWith("Row needs") ||
-        e.includes("spreadsheet formula") ||
-        e.includes("matches more than one ward") ||
-        e.includes("not in the selected constituency coverage")
-    );
+  row.rejected = blockingForCommit(row);
 }
 
 export function assignStagedWards(
@@ -790,18 +800,6 @@ export function assignStagedWards(
   return summarize(session);
 }
 
-function blockingForCommit(row: StagedImportRow): boolean {
-  if (row.empty) return false;
-  if (row.identifierReview === "needed") return true;
-  return row.errors.some(
-    (e) =>
-      e.startsWith("Row needs") ||
-      e.includes("spreadsheet formula") ||
-      (e.includes("matches more than one ward") && !row.assignedWardId) ||
-      (e.includes("not in the selected constituency coverage") && !row.assignedWardId && row.wardMatch === "invalid")
-  );
-}
-
 export function commitImport(
   db: Database.Database,
   sessionId: string,
@@ -817,10 +815,13 @@ export function commitImport(
       "Resolve identifier review before commit. WIN WIN will not guess missing zeros. No records were imported."
     );
   }
-  const eligible = session.staged.filter((row) => !row.empty && !blockingForCommit(row));
-  const rejected = session.staged.filter((row) => !row.empty && blockingForCommit(row)).length;
+  const eligible = session.staged.filter(isImportable);
+  const rejected = session.staged.filter((row) => !row.empty && !isImportable(row)).length;
   if (eligible.length === 0) {
-    throw new AppError("import_invalid", "Resolve row-level validation errors before commit. No records were imported.");
+    throw new AppError(
+      "import_invalid",
+      "No importable rows. Assign or keep unassigned any ambiguous or invalid wards, and finish identifier review. No records were imported."
+    );
   }
   const previous = findPreviousBatch(db, session.fileSha256, session.constituencyId, session.rollEditionId);
   if (previous && !acknowledgeRepeat) {

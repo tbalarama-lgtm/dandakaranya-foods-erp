@@ -24,11 +24,11 @@ export function issueTone(status: string): BadgeTone {
   return "warning";
 }
 
-export function taskTone(status: string, overdue?: boolean): BadgeTone {
-  if (overdue) return "danger";
+export function taskTone(status: string): BadgeTone {
   if (status === "done") return "success";
   if (status === "cancelled") return "neutral";
-  return "info";
+  if (status === "in_progress") return "info";
+  return "warning";
 }
 
 export function assignmentTone(status: string): BadgeTone {

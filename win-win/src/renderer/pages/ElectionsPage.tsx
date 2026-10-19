@@ -71,7 +71,7 @@ export function ElectionsPage({ model }: { model: AppModel }): JSX.Element {
               <th>Type</th>
               <th>Year</th>
               <th>Status</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>

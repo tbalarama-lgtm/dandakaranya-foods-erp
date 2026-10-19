@@ -166,7 +166,7 @@ export function RuralPage({ model }: { model: AppModel }): JSX.Element {
             <tr>
               <th>No.</th>
               <th>Name</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>

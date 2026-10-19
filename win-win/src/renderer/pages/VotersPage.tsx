@@ -314,7 +314,7 @@ export function VotersPage({ model }: { model: AppModel }): JSX.Element {
         <table className="table" data-testid="voter-table">
           <thead>
             <tr>
-              <th></th>
+              <th>Select</th>
               <th>Name</th>
               <th>Identifier</th>
               <th>Serial</th>

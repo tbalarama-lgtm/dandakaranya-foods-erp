@@ -228,8 +228,8 @@ function OverviewTab({
         <h2>Recent activity</h2>
         <ul data-testid="overview-activity">
           {overview?.recentActivity.map((item) => (
-            <li key={`${item.kind}-${item.recordId}-${item.at}`}>
-              {item.summary} · {item.at.slice(0, 10)}
+              <li key={`${item.kind}-${item.recordId}-${item.at}`}>
+              {item.action ?? item.kind} · {item.record ?? item.summary} · {item.at.replace("T", " ").slice(0, 16)}
             </li>
           ))}
         </ul>
@@ -447,7 +447,7 @@ function ContactsTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; c
               <th>Organization</th>
               <th>Role</th>
               <th>Consent</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -689,7 +689,7 @@ function TeamTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; const
               <th>Role</th>
               <th>Dates</th>
               <th>Status</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -928,7 +928,7 @@ function IssuesTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; con
               <th>Title</th>
               <th>Status</th>
               <th>Priority</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1184,7 +1184,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
               <th>Title</th>
               <th>Due</th>
               <th>Status</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1195,7 +1195,7 @@ function TasksTab({ model, ctx }: { model: AppModel; ctx: { wardId: string; cons
                   {row.dueDate ?? "—"} {row.overdue ? <StatusBadge tone="danger">overdue</StatusBadge> : null}
                 </td>
                 <td>
-                  <StatusBadge tone={taskTone(row.status, row.overdue)}>
+                  <StatusBadge tone={taskTone(row.status)}>
                     {row.status === "done" ? "completed" : row.status.replaceAll("_", " ")}
                   </StatusBadge>
                 </td>

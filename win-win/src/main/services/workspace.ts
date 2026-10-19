@@ -900,7 +900,14 @@ export function wardOverview(
     )
     .all(wardId, constituencyId) as Array<{ id: string; updated_at: string; name: string }>;
   for (const row of contacts) {
-    recent.push({ at: row.updated_at, kind: "contact", summary: `Contact ${row.name}`, recordId: row.id });
+    recent.push({
+      at: row.updated_at,
+      kind: "contact",
+      action: "Recorded contact",
+      record: row.name,
+      summary: `Recorded contact · ${row.name}`,
+      recordId: row.id
+    });
   }
   const team = db
     .prepare(
@@ -909,7 +916,14 @@ export function wardOverview(
     )
     .all(wardId, constituencyId) as Array<{ id: string; updated_at: string; name: string }>;
   for (const row of team) {
-    recent.push({ at: row.updated_at, kind: "team", summary: `Team ${row.name}`, recordId: row.id });
+    recent.push({
+      at: row.updated_at,
+      kind: "team",
+      action: "Assigned team member",
+      record: row.name,
+      summary: `Assigned team member · ${row.name}`,
+      recordId: row.id
+    });
   }
   const issues = db
     .prepare(
@@ -920,7 +934,9 @@ export function wardOverview(
     recent.push({
       at: row.updated_at,
       kind: "issue",
-      summary: `${row.reference_number} ${row.title}`,
+      action: "Logged issue",
+      record: `${row.reference_number} ${row.title}`,
+      summary: `Logged issue · ${row.reference_number} ${row.title}`,
       recordId: row.id
     });
   }
@@ -929,7 +945,14 @@ export function wardOverview(
     .all(wardId, constituencyId) as Array<{ id: string; updated_at: string; title: string; status: string; due_date: string | null }>;
   for (const row of tasks) {
     const overdueMark = isOverdue(row.due_date, row.status) ? " (overdue)" : "";
-    recent.push({ at: row.updated_at, kind: "task", summary: `${row.title}${overdueMark}`, recordId: row.id });
+    recent.push({
+      at: row.updated_at,
+      kind: "task",
+      action: "Updated task",
+      record: `${row.title}${overdueMark}`,
+      summary: `Updated task · ${row.title}${overdueMark}`,
+      recordId: row.id
+    });
   }
   recent.sort((a, b) => (a.at < b.at ? 1 : -1));
   return {

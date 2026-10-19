@@ -548,4 +548,37 @@ describe("Phase 3 electoral roll", () => {
       geo.rural2.id
     );
   });
+
+  it("blocks commit when no rows are importable and refreshes eligibility after keep unassigned", async () => {
+    const db = openMemory();
+    const geo = seed(db);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "winwin-p3-"));
+    dirs.push(dir);
+    const csv = writeCsv(dir, "blocked.csv", `name_original,electoral_id,ward_number\nరాము,A1,99\n`);
+    const table = await readTabularFile(csv);
+    const edition = createEdition(db, {
+      constituencyId: geo.constituency.id,
+      boundaryVersionId: geo.version.id,
+      name: "blocked"
+    });
+    const session = createSession(db, {
+      constituencyId: geo.constituency.id,
+      ...table,
+      fileName: "blocked.csv",
+      sha: sha256File(csv)
+    });
+    setEdition(db, session.sessionId, edition.id);
+    setMapping(session.sessionId, { nameOriginal: "name_original", electoralId: "electoral_id", wardNumber: "ward_number" });
+    const validated = await validateSession(db, session.sessionId);
+    expect(validated.eligibleCount).toBe(0);
+    expect(validated.excludedCount).toBe(1);
+    expect(() => commitImport(db, session.sessionId)).toThrow(/No importable rows/);
+    const kept = assignStagedWards(db, session.sessionId, [validated.rows[0]!.sourceRowNumber], null);
+    expect(kept.eligibleCount).toBe(1);
+    expect(kept.excludedCount).toBe(0);
+    expect(kept.unassignedCount).toBe(1);
+    const committed = commitImport(db, session.sessionId);
+    expect(committed.imported).toBe(1);
+    expect(committed.unassigned).toBe(1);
+  });
 });

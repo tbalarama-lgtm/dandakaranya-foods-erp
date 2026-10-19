@@ -19,6 +19,7 @@ import {
   createUlb,
   createVillage
 } from "../src/main/services/geo";
+import { dashboardAttention } from "../src/main/services/dashboard";
 import { loadDemoData } from "../src/main/services/demo";
 import { createWard, listWards } from "../src/main/services/wards";
 import { listVoters } from "../src/main/services/voters";
@@ -553,5 +554,40 @@ describe("Demonstration seed", () => {
     const voters = listVoters(db, { constituencyId: constituency.id, pageSize: 10 });
     expect(voters.items.some((row) => row.sourceName.includes("రాము") && row.assignedWardId)).toBe(true);
     expect(voters.items.some((row) => row.sourceName.includes("సీత") && !row.assignedWardId)).toBe(true);
+  });
+
+  it("scopes dashboard attention to the selected constituency", () => {
+    const db = openMemory();
+    const geo = seed(db);
+    const yesterday = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return localDateString(d);
+    })();
+    createIssue(db, {
+      wardId: geo.rural.id,
+      constituencyId: geo.constituency.id,
+      title: "Drain overflow",
+      category: "sanitation",
+      reportedAt: "2026-03-01",
+      priority: "high"
+    });
+    createTask(db, {
+      wardId: geo.rural.id,
+      constituencyId: geo.constituency.id,
+      title: "Inspect drain",
+      dueDate: yesterday
+    });
+    const attention = dashboardAttention(db, geo.constituency.id);
+    expect(attention.overdueTasks).toHaveLength(1);
+    expect(attention.overdueTasks[0]?.href).toBe(`/wards/${geo.rural.id}/tasks`);
+    expect(attention.overdueTasks[0]?.status).toBe("open");
+    expect(attention.unresolvedIssues).toHaveLength(1);
+    expect(attention.unresolvedIssues[0]?.href).toBe(`/wards/${geo.rural.id}/issues`);
+    expect(attention.recentActivity.some((item) => item.action && item.record && item.href)).toBe(true);
+    const other = dashboardAttention(db, geo.other.id);
+    expect(other.overdueTasks).toHaveLength(0);
+    expect(other.unresolvedIssues).toHaveLength(0);
+    expect(other.recentActivity).toHaveLength(0);
   });
 });

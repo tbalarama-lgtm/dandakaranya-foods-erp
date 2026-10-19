@@ -22,6 +22,7 @@ const api: WinWinApi = {
   settingsGet: () => invoke(IpcChannel.settingsGet),
   settingsUpdate: (input) => invoke(IpcChannel.settingsUpdate, input),
   dashboardCounts: (input) => invoke(IpcChannel.dashboardCounts, input),
+  dashboardAttention: (input) => invoke(IpcChannel.dashboardAttention, input),
   boundaryList: () => invoke(IpcChannel.boundaryList),
   boundaryCreate: (input) => invoke(IpcChannel.boundaryCreate, input),
   boundaryUpdate: (input) => invoke(IpcChannel.boundaryUpdate, input),

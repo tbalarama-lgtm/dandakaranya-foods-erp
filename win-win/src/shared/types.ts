@@ -323,6 +323,28 @@ export interface ActivityItem {
   kind: "contact" | "team" | "issue" | "task";
   summary: string;
   recordId: string;
+  wardId?: string;
+  wardName?: string;
+  action?: string;
+  record?: string;
+  href?: string;
+}
+
+export interface DashboardWorkItem {
+  id: string;
+  title: string;
+  wardId: string;
+  wardName: string;
+  href: string;
+  dueDate?: string | null;
+  status?: string;
+  referenceNumber?: string;
+}
+
+export interface DashboardAttention {
+  overdueTasks: DashboardWorkItem[];
+  unresolvedIssues: DashboardWorkItem[];
+  recentActivity: ActivityItem[];
 }
 
 export interface WardOverview {
@@ -539,6 +561,7 @@ export interface ImportValidateResult {
   identifierReviewCount: number;
   emptySkipped: number;
   eligibleCount: number;
+  excludedCount: number;
   issues: ImportValidationIssue[];
 }
 
