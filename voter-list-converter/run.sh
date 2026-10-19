@@ -13,6 +13,8 @@ fi
 
 # shellcheck disable=SC1091
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install --only-binary :all: -r requirements.txt || python -m pip install -r requirements.txt
+export PIP_DEFAULT_TIMEOUT=180
+python -m pip install --upgrade pip --default-timeout 180 --retries 20
+python -m pip install --default-timeout 180 --retries 20 --only-binary :all: -r requirements.txt \
+  || python -m pip install --default-timeout 180 --retries 20 -r requirements.txt
 python gui_app.py

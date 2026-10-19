@@ -1,14 +1,17 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+chcp 65001 >nul
 
-echo BUILD 4 — LOCAL OCR FOR IMAGE ROLLS
+echo BUILD 4 - LOCAL OCR FOR IMAGE ROLLS
+echo.
+echo Yellow timeout lines mean the download is retrying. Leave this window open.
 echo.
 
 findstr /I /C:"pandas" "requirements.txt" >nul 2>nul
 if %ERRORLEVEL%==0 (
   echo WRONG COPY: requirements.txt still lists pandas.
-  echo Close this window, delete this whole folder, and unzip VOTER-CONVERTER-NO-PANDAS.zip
+  echo Close this window, delete this whole folder, and unzip VOTER-CONVERTER-OCR-v4.zip
   pause
   exit /b 1
 )
@@ -53,17 +56,24 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 call .venv\Scripts\activate.bat
-python -m pip install --upgrade pip
-echo Installing packages from ready-made Windows wheels (no Visual Studio)...
-python -m pip install --only-binary :all: -r requirements.txt
+set PIP_DEFAULT_TIMEOUT=180
+set PIP_RETRIES=20
+python -m pip install --upgrade pip --default-timeout 180 --retries 20
+echo Installing packages. First OCR install can take several minutes...
+python -m pip install --default-timeout 180 --retries 20 --only-binary :all: -r requirements.txt
 if errorlevel 1 (
   echo Binary-only install missed a wheel. Retrying with source packages allowed...
-  python -m pip install -r requirements.txt
+  python -m pip install --default-timeout 180 --retries 20 -r requirements.txt
+)
+if errorlevel 1 (
+  echo PyPI timed out. Trying the official index again...
+  python -m pip install --default-timeout 180 --retries 20 --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 )
 if errorlevel 1 (
   echo.
-  echo Package install failed.
-  echo Close this window, delete the .venv folder in this directory, then double-click run.bat again.
+  echo Package install failed because the computer could not reach pypi.org.
+  echo Check internet / VPN / firewall, then double-click run.bat again.
+  echo You do not need to delete .venv unless pandas was installed.
   pause
   exit /b 1
 )
