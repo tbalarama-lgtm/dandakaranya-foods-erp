@@ -1,8 +1,11 @@
-BUILD 3 — NO PANDAS
-===================
+BUILD 4 — LOCAL OCR FOR IMAGE ROLLS
+===================================
 
 If the black window mentions pandas or Visual Studio, you are in the OLD folder.
-Delete that folder. Unzip VOTER-CONVERTER-NO-PANDAS.zip instead.
+Delete that folder. Unzip VOTER-CONVERTER-OCR.zip instead.
+
+Image-scanned ECI rolls are read locally with OCR. The first image conversion is slower
+(model load + 45 pages). Nothing is uploaded.
 
 Secure Local Voter Roll Converter
 =================================

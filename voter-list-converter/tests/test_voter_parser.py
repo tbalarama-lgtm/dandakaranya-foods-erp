@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openpyxl import load_workbook
@@ -13,9 +13,9 @@ from voter_parser import (
     NonSearchablePdfError,
     OutputPermissionError,
     PasswordProtectedPdfError,
+    extract_page_text,
     extract_voter_data,
     parse_page_text,
-    write_excel,
 )
 
 
@@ -96,6 +96,28 @@ def test_extract_voter_data_writes_excel_and_reports_progress(tmp_path: Path) ->
     sheet = loaded.active
     assert [cell.value for cell in sheet[1][:3]] == ["Serial No.", "EPIC ID", "Voter Name"]
     assert int(sheet[2][6].value) == 42
+
+
+def test_extract_page_text_falls_back_to_fitz() -> None:
+    page = MagicMock()
+    page.extract_text.return_value = ""
+    with patch("voter_parser._fitz_text", return_value=SAMPLE_PAGE):
+        text, origin = extract_page_text(page, object(), 0)
+    assert origin == "fitz"
+    assert "ZOW0935116" in text
+
+
+def test_extract_page_text_ocrs_when_page_has_ink() -> None:
+    page = MagicMock()
+    page.extract_text.return_value = ""
+    with (
+        patch("voter_parser._fitz_text", return_value=""),
+        patch("voter_parser._page_has_ink", return_value=True),
+        patch("voter_parser._ocr_page", return_value=SAMPLE_PAGE),
+    ):
+        text, origin = extract_page_text(page, object(), 0)
+    assert origin == "ocr"
+    assert "Gender" in text
 
 
 def test_missing_file_is_flagged(tmp_path: Path) -> None:

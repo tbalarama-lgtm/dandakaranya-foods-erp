@@ -33,7 +33,7 @@ COLUMNS = [
 
 EPIC_RE = re.compile(r"\b([A-Z]{3}[0-9]{7})\b")
 AGE_GENDER_RE = re.compile(
-    r"Age\s*:\s*(?P<age>\d{1,3})\s*Gender\s*:\s*(?P<gender>[A-Za-z][A-Za-z /]*)",
+    r"Age\s*[:\-]?\s*(?P<age>\d{1,3})\s*(?:Years?)?\s*Gender\s*[:\-]?\s*(?P<gender>[A-Za-z][A-Za-z /]*)",
     re.IGNORECASE,
 )
 SECTION_RE = re.compile(
@@ -200,10 +200,13 @@ def _default_output_path(pdf_path: Path) -> Path:
     return pdf_path.with_name(f"{pdf_path.stem}_voters.xlsx")
 
 
-def _emit_progress(callback: ProgressCallback | None, current: int, total: int) -> None:
+def _emit_progress(callback: ProgressCallback | None, current: int, total: int, message: str = "") -> None:
     if callback is None:
         return
-    callback(current, total)
+    try:
+        callback(current, total, message)  # type: ignore[misc]
+    except TypeError:
+        callback(current, total)
 
 
 def _open_pdf(pdf_path: Path):
@@ -228,12 +231,96 @@ def _open_pdf(pdf_path: Path):
         ) from exc
 
 
+_OCR_ENGINE = None
+
+
+def _fitz_document(pdf_path: Path):
+    try:
+        import fitz
+    except ImportError:
+        return None
+    try:
+        return fitz.open(str(pdf_path))
+    except Exception:
+        return None
+
+
+def _fitz_text(doc, index_zero: int) -> str:
+    if doc is None:
+        return ""
+    try:
+        return doc.load_page(index_zero).get_text("text") or ""
+    except Exception:
+        return ""
+
+
+def _page_has_ink(doc, index_zero: int) -> bool:
+    if doc is None:
+        return False
+    try:
+        import numpy as np
+
+        page = doc.load_page(index_zero)
+        pix = page.get_pixmap(matrix=__import__("fitz").Matrix(0.4, 0.4), alpha=False)
+        samples = np.frombuffer(pix.samples, dtype=np.uint8)
+        return bool(samples.size) and float(samples.std()) > 8.0
+    except Exception:
+        try:
+            return bool(doc.load_page(index_zero).get_images())
+        except Exception:
+            return False
+
+
+def _ocr_page(doc, index_zero: int) -> str:
+    global _OCR_ENGINE
+    if doc is None:
+        return ""
+    try:
+        import numpy as np
+        import fitz
+        from rapidocr_onnxruntime import RapidOCR
+    except ImportError:
+        return ""
+    if _OCR_ENGINE is None:
+        _OCR_ENGINE = RapidOCR()
+    page = doc.load_page(index_zero)
+    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+    image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+    result, _elapse = _OCR_ENGINE(image)
+    if not result:
+        return ""
+    lines: list[str] = []
+    for item in result:
+        if isinstance(item, (list, tuple)) and len(item) >= 2 and item[1]:
+            lines.append(str(item[1]))
+    return "\n".join(lines)
+
+
+def extract_page_text(plumber_page, fitz_doc, index_zero: int) -> tuple[str, str]:
+    """Return (text, source) where source is plumber, fitz, or ocr."""
+    try:
+        plumber_text = plumber_page.extract_text() or ""
+    except Exception:
+        plumber_text = ""
+    if clean_text(plumber_text):
+        return plumber_text, "plumber"
+    fitz_text = _fitz_text(fitz_doc, index_zero)
+    if clean_text(fitz_text):
+        return fitz_text, "fitz"
+    if not _page_has_ink(fitz_doc, index_zero):
+        return "", "empty"
+    ocr_text = _ocr_page(fitz_doc, index_zero)
+    if clean_text(ocr_text):
+        return ocr_text, "ocr"
+    return "", "empty"
+
+
 def extract_voter_data(
     pdf_path: str | Path,
     progress_callback: ProgressCallback | None = None,
     output_path: str | Path | None = None,
-) -> pd.DataFrame:
-    """Read a searchable electoral-roll PDF and write a local Excel workbook."""
+) -> ExtractResult:
+    """Read a searchable or image electoral-roll PDF and write a local Excel workbook."""
     source = Path(pdf_path).expanduser()
     if not source.is_file():
         raise CorruptedPdfError(f"The file was not found: {source}")
@@ -245,36 +332,46 @@ def extract_voter_data(
 
     rows: list[dict[str, object]] = []
     searchable_pages = 0
+    ocr_pages = 0
     section = ""
 
     pdf = None
+    fitz_doc = None
     try:
         pdf = _open_pdf(source)
+        fitz_doc = _fitz_document(source)
         pages = list(pdf.pages)
         total = len(pages)
         if total == 0:
             raise CorruptedPdfError("The PDF has no pages.")
-        _emit_progress(progress_callback, 0, total)
+        _emit_progress(progress_callback, 0, total, f"Opened roll · {total} page(s)")
 
         for index, page in enumerate(pages, start=1):
-            try:
-                text = page.extract_text() or ""
-            except Exception as exc:
-                raise CorruptedPdfError(
-                    f"Page {index} could not be read. The file may be corrupted."
-                ) from exc
+            text, origin = extract_page_text(page, fitz_doc, index - 1)
+            if origin == "ocr":
+                ocr_pages += 1
+                _emit_progress(progress_callback, index, total, f"OCR page {index} of {total} (image roll)...")
+            else:
+                _emit_progress(progress_callback, index, total, f"Scanning Page {index} of {total}...")
             if clean_text(text):
                 searchable_pages += 1
             page_rows, section = parse_page_text(text, index, section)
             rows.extend(page_rows)
-            _emit_progress(progress_callback, index, total)
     finally:
         if pdf is not None:
             pdf.close()
+        if fitz_doc is not None:
+            fitz_doc.close()
 
     if searchable_pages == 0:
         raise NonSearchablePdfError(
-            "No extractable text was found. Image-scanned rolls need OCR and are not converted by this local text extractor."
+            "No extractable text was found, including after local OCR. "
+            "The file may be empty, damaged, or too low-quality to read."
+        )
+    if not rows:
+        raise VoterParseError(
+            "The PDF was read, but no voter cards with Age and Gender were found. "
+            "This layout may differ from the standard Indian electoral-roll card format."
         )
 
     try:

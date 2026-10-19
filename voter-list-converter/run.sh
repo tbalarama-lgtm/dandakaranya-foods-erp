@@ -14,5 +14,5 @@ fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install --only-binary :all: -r requirements.txt
+python -m pip install --only-binary :all: -r requirements.txt || python -m pip install -r requirements.txt
 python gui_app.py

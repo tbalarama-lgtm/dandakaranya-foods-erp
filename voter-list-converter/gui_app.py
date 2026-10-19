@@ -205,8 +205,8 @@ class VoterRollConverterApp:
         self.worker.start()
 
     def _run_extraction(self, pdf_path: str, output_path: str) -> None:
-        def on_progress(current: int, total: int) -> None:
-            self._post(("progress", current, total))
+        def on_progress(current: int, total: int, message: str = "") -> None:
+            self._post(("progress", current, total, message))
 
         try:
             result = extract_voter_data(pdf_path, progress_callback=on_progress, output_path=output_path)
@@ -233,18 +233,20 @@ class VoterRollConverterApp:
                 message = self.ui_queue.get_nowait()
                 kind = message[0]
                 if kind == "progress":
-                    _, current, total = message
+                    current = message[1]
+                    total = message[2]
+                    detail = message[3] if len(message) > 3 else ""
                     total = max(int(total), 1)
                     current = max(0, int(current))
                     percent = min(100.0, (current / total) * 100.0)
                     self.progress.configure(mode="determinate", maximum=100)
                     self.progress_var.set(percent)
-                    if current == 0:
-                        self._append_log(f"Opened roll · {total} page(s)", "info")
-                    else:
-                        self._append_log(f"Scanning Page {current} of {total}...", "info")
+                    line = detail or (
+                        f"Opened roll · {total} page(s)" if current == 0 else f"Scanning Page {current} of {total}..."
+                    )
+                    self._append_log(line, "info")
                     self.status_label.configure(fg=MUTED)
-                    self.status_var.set(f"Scanning page {current} of {total}")
+                    self.status_var.set(line)
                 elif kind == "done":
                     _, rows, destination = message
                     self._append_log("Compiling Rows...", "info")

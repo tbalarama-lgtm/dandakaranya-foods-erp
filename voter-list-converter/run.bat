@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-echo BUILD 3 — NO PANDAS
+echo BUILD 4 — LOCAL OCR FOR IMAGE ROLLS
 echo.
 
 findstr /I /C:"pandas" "requirements.txt" >nul 2>nul
@@ -56,6 +56,10 @@ call .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 echo Installing packages from ready-made Windows wheels (no Visual Studio)...
 python -m pip install --only-binary :all: -r requirements.txt
+if errorlevel 1 (
+  echo Binary-only install missed a wheel. Retrying with source packages allowed...
+  python -m pip install -r requirements.txt
+)
 if errorlevel 1 (
   echo.
   echo Package install failed.
