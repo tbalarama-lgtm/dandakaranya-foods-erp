@@ -1,0 +1,2 @@
+BUILD 3 — NO PANDAS
+If run.bat mentions Visual Studio or pandas, you opened the old folder. Delete it.

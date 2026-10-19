@@ -1,3 +1,9 @@
+BUILD 3 — NO PANDAS
+===================
+
+If the black window mentions pandas or Visual Studio, you are in the OLD folder.
+Delete that folder. Unzip VOTER-CONVERTER-NO-PANDAS.zip instead.
+
 Secure Local Voter Roll Converter
 =================================
 

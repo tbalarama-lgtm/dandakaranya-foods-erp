@@ -2,6 +2,17 @@
 setlocal
 cd /d "%~dp0"
 
+echo BUILD 3 — NO PANDAS
+echo.
+
+findstr /I /C:"pandas" "requirements.txt" >nul 2>nul
+if %ERRORLEVEL%==0 (
+  echo WRONG COPY: requirements.txt still lists pandas.
+  echo Close this window, delete this whole folder, and unzip VOTER-CONVERTER-NO-PANDAS.zip
+  pause
+  exit /b 1
+)
+
 if not exist "gui_app.py" (
   echo FILE NOT FOUND: gui_app.py
   echo Open the unzipped folder named voter-list-converter so you can see run.bat and gui_app.py together.
@@ -23,6 +34,11 @@ if errorlevel 1 (
   echo Tick "Add python.exe to PATH" and leave "tcl/tk and IDLE" enabled, then try run.bat again.
   pause
   exit /b 1
+)
+
+if exist ".venv\Lib\site-packages\pandas" (
+  echo Removing broken .venv that still contains pandas...
+  rmdir /s /q ".venv"
 )
 
 if not exist ".venv\Scripts\python.exe" (
