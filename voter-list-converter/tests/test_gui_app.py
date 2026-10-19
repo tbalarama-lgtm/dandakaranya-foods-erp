@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -93,8 +94,14 @@ def test_background_error_resets_progress_and_logs_red(tmp_path: Path) -> None:
         app.output_dir_var.set(str(tmp_path))
         app.start_conversion()
         app.worker.join(timeout=5)
-        _pump(app)
-        assert "No extractable text was found." in app.log.get("1.0", "end")
+        log_text = ""
+        deadline = time.time() + 2
+        while time.time() < deadline:
+            _pump(app, rounds=10)
+            log_text = app.log.get("1.0", "end")
+            if "No extractable text was found." in log_text:
+                break
+        assert "No extractable text was found." in log_text
         assert app.progress_var.get() == 0
         assert str(app.start_button.cget("state")) == "normal"
 
