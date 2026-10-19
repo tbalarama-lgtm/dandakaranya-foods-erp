@@ -16,5 +16,6 @@ source .venv/bin/activate
 export PIP_DEFAULT_TIMEOUT=180
 python -m pip install --upgrade pip --default-timeout 180 --retries 20
 python -m pip install --default-timeout 180 --retries 20 --only-binary :all: -r requirements.txt \
-  || python -m pip install --default-timeout 180 --retries 20 -r requirements.txt
+  || python -m pip install --default-timeout 180 --retries 20 -r requirements.txt \
+  || python -m pip install --default-timeout 180 --retries 20 pdfplumber==0.11.7 openpyxl==3.1.5 "pymupdf>=1.24.0"
 python gui_app.py

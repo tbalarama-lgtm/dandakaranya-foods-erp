@@ -3,18 +3,11 @@ setlocal
 cd /d "%~dp0"
 chcp 65001 >nul
 
-echo BUILD 4 - LOCAL OCR FOR IMAGE ROLLS
+echo BUILD 5 - PYTHON 3.13 LOCAL OCR
 echo.
-echo Yellow timeout lines mean the download is retrying. Leave this window open.
+echo pdfplumber / openpyxl / pymupdf install first.
+echo Then RapidOCR (package name: rapidocr). Yellow lines are retries - leave this window open.
 echo.
-
-findstr /I /C:"pandas" "requirements.txt" >nul 2>nul
-if %ERRORLEVEL%==0 (
-  echo WRONG COPY: requirements.txt still lists pandas.
-  echo Close this window, delete this whole folder, and unzip VOTER-CONVERTER-OCR-v4.zip
-  pause
-  exit /b 1
-)
 
 if not exist "gui_app.py" (
   echo FILE NOT FOUND: gui_app.py
@@ -30,6 +23,7 @@ if %ERRORLEVEL%==0 (
   set PY=python
 )
 
+%PY% --version
 %PY% --version >nul 2>nul
 if errorlevel 1 (
   echo FILE NOT FOUND: Python
@@ -59,24 +53,31 @@ call .venv\Scripts\activate.bat
 set PIP_DEFAULT_TIMEOUT=180
 set PIP_RETRIES=20
 python -m pip install --upgrade pip --default-timeout 180 --retries 20
-echo Installing packages. First OCR install can take several minutes...
-python -m pip install --default-timeout 180 --retries 20 --only-binary :all: -r requirements.txt
+
+echo.
+echo Step 1/2: PDF and Excel libraries...
+python -m pip install --default-timeout 180 --retries 20 --only-binary :all: pdfplumber==0.11.7 openpyxl==3.1.5 "pymupdf>=1.24.0"
+if errorlevel 1 python -m pip install --default-timeout 180 --retries 20 pdfplumber==0.11.7 openpyxl==3.1.5 "pymupdf>=1.24.0"
 if errorlevel 1 (
-  echo Binary-only install missed a wheel. Retrying with source packages allowed...
-  python -m pip install --default-timeout 180 --retries 20 -r requirements.txt
-)
-if errorlevel 1 (
-  echo PyPI timed out. Trying the official index again...
-  python -m pip install --default-timeout 180 --retries 20 --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
-)
-if errorlevel 1 (
-  echo.
-  echo Package install failed because the computer could not reach pypi.org.
-  echo Check internet / VPN / firewall, then double-click run.bat again.
-  echo You do not need to delete .venv unless pandas was installed.
+  echo Core PDF/Excel packages failed. Check internet and run.bat again. Do not delete .venv.
   pause
   exit /b 1
 )
+
+echo.
+echo Step 2/2: Local OCR for image-scanned ECI rolls (Python 3.13 compatible)...
+python -m pip install --default-timeout 180 --retries 20 --only-binary :all: "numpy>=1.26.0,<3" "rapidocr>=2.0.6" "onnxruntime>=1.17.0"
+if errorlevel 1 python -m pip install --default-timeout 180 --retries 20 "numpy>=1.26.0,<3" "rapidocr>=2.0.6" "onnxruntime>=1.17.0"
+if errorlevel 1 (
+  echo OCR extra failed. Trying last-resort old package 1.2.3...
+  python -m pip install --default-timeout 180 --retries 20 "rapidocr-onnxruntime==1.2.3"
+)
+if errorlevel 1 (
+  echo OCR could not be installed. The window will still open for text PDFs.
+  echo For image rolls, keep internet on and run Step 2 later:
+  echo   .venv\Scripts\python.exe -m pip install rapidocr onnxruntime
+)
+
 echo.
 echo Starting Secure Local Voter Roll Converter...
 python gui_app.py

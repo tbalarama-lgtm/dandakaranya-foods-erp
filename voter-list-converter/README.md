@@ -1,10 +1,12 @@
 # Secure Local Voter Roll Converter
 
-Offline PDF → Excel tool for **searchable** Indian electoral-roll PDFs. It is a separate local utility from WIN WIN. Files never leave your computer.
+Offline PDF → Excel tool for Indian electoral-roll PDFs (searchable text, or image scans via local OCR). It is a separate local utility from WIN WIN. Files never leave your computer.
+
+Python **3.13** needs package `rapidocr` (not `rapidocr-onnxruntime`, which stops at Python 3.12).
 
 ## Install on your computer
 
-You need **Python 3.10 or newer** with Tkinter (the built-in GUI library).
+You need **Python 3.10–3.13** with Tkinter (the built-in GUI library).
 
 ### 1. Get the folder
 
@@ -78,7 +80,7 @@ From each voter block marked by `Age :` and `Gender:`:
 
 ## Limits
 
-- Searchable (text) PDFs only. Image-scanned rolls are flagged, not OCR’d.
+- Text PDFs are parsed first. Image-scanned ECI rolls are OCR’d locally (slower, first run downloads an OCR model into the venv).
 - Password-protected PDFs are rejected until you unlock a local copy.
 - Processing is local only. There is no cloud upload.
 

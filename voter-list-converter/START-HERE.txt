@@ -1,28 +1,23 @@
-BUILD 4 — LOCAL OCR FOR IMAGE ROLLS
-===================================
+BUILD 5 - PYTHON 3.13 LOCAL OCR
+================================
 
-If the black window mentions pandas or Visual Studio, you are in the OLD folder.
-Delete that folder. Unzip VOTER-CONVERTER-OCR.zip instead.
+Your screenshot error:
+  No matching distribution found for rapidocr-onnxruntime>=1.4.0
+means Python 3.13 is installed. That old OCR package only supports Python 3.12 and below.
 
-Image-scanned ECI rolls are read locally with OCR. The first image conversion is slower
-(model load + 45 pages). Nothing is uploaded.
+This folder uses the new package names instead:
+  pip install rapidocr onnxruntime
 
-Secure Local Voter Roll Converter
-=================================
+Do NOT delete .venv if pdfplumber / openpyxl / pymupdf already installed.
+Just double-click this new run.bat.
 
 Windows
-1. Install Python 3.10+ from https://www.python.org/downloads/
+1. Keep Python 3.10–3.13 from https://www.python.org/downloads/
    Tick "Add python.exe to PATH" and leave "tcl/tk and IDLE" enabled.
 2. Unzip so you can see run.bat in this folder.
-3. If a previous try failed, delete the .venv folder in this directory.
-4. Double-click run.bat
-5. Browse File -> tests\fixtures\sample-electoral-roll.pdf
-6. Click Start Secure Conversion
+3. Double-click run.bat  (Step 1 = PDF/Excel, Step 2 = OCR)
+4. Browse File -> your ECI roll PDF
+5. Click Start Secure Conversion
 
-macOS / Linux
-  chmod +x run.sh
-  ./run.sh
-  (Linux: sudo apt install python3 python3-venv python3-tk)
-
-The app stays on your computer. It does not upload files.
-Searchable (text) PDFs only. Scanned image rolls are not converted.
+First image-roll conversion can take several minutes (OCR model + 45 pages).
+Nothing is uploaded.

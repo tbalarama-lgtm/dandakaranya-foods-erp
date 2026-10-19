@@ -13,6 +13,7 @@ from voter_parser import (
     NonSearchablePdfError,
     OutputPermissionError,
     PasswordProtectedPdfError,
+    _ocr_result_to_text,
     extract_page_text,
     extract_voter_data,
     parse_page_text,
@@ -105,6 +106,15 @@ def test_extract_page_text_falls_back_to_fitz() -> None:
         text, origin = extract_page_text(page, object(), 0)
     assert origin == "fitz"
     assert "ZOW0935116" in text
+
+
+def test_ocr_result_to_text_supports_rapidocr_v2_and_v3() -> None:
+    class Output:
+        txts = ("Name : RAMA", "Age : 42 Gender: Male")
+
+    assert "RAMA" in _ocr_result_to_text(Output())
+    legacy = ([[0, 0], "Father's Name : KRISHNA", 0.9],)
+    assert "KRISHNA" in _ocr_result_to_text(legacy)
 
 
 def test_extract_page_text_ocrs_when_page_has_ink() -> None:

@@ -232,6 +232,70 @@ def _open_pdf(pdf_path: Path):
 
 
 _OCR_ENGINE = None
+_OCR_ENGINE_NAME = ""
+
+
+def ocr_packages_installed() -> bool:
+    import importlib.util
+
+    return (
+        importlib.util.find_spec("rapidocr") is not None
+        or importlib.util.find_spec("rapidocr_onnxruntime") is not None
+    )
+
+
+def ocr_backend_name() -> str:
+    """Return a short OCR status for the UI log, without loading the model."""
+    if _OCR_ENGINE_NAME:
+        return _OCR_ENGINE_NAME
+    if ocr_packages_installed():
+        return "rapidocr"
+    return "unavailable"
+
+
+def _ocr_result_to_text(result: object) -> str:
+    if result is None:
+        return ""
+    txts = getattr(result, "txts", None)
+    if txts:
+        return "\n".join(str(item) for item in txts if item)
+    payload: object = result
+    if isinstance(result, tuple):
+        payload = result[0] if result else None
+    if not payload:
+        return ""
+    lines: list[str] = []
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, str) and item.strip():
+                lines.append(item)
+            elif isinstance(item, (list, tuple)) and len(item) >= 2 and item[1]:
+                lines.append(str(item[1]))
+    return "\n".join(lines)
+
+
+def _ensure_ocr_engine():
+    global _OCR_ENGINE, _OCR_ENGINE_NAME
+    if _OCR_ENGINE is not None or _OCR_ENGINE_NAME == "unavailable":
+        return _OCR_ENGINE
+    try:
+        from rapidocr import RapidOCR
+
+        _OCR_ENGINE = RapidOCR()
+        _OCR_ENGINE_NAME = "rapidocr"
+        return _OCR_ENGINE
+    except Exception:
+        pass
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+
+        _OCR_ENGINE = RapidOCR()
+        _OCR_ENGINE_NAME = "rapidocr_onnxruntime"
+        return _OCR_ENGINE
+    except Exception:
+        _OCR_ENGINE_NAME = "unavailable"
+        _OCR_ENGINE = None
+        return None
 
 
 def _fitz_document(pdf_path: Path):
@@ -272,28 +336,24 @@ def _page_has_ink(doc, index_zero: int) -> bool:
 
 
 def _ocr_page(doc, index_zero: int) -> str:
-    global _OCR_ENGINE
     if doc is None:
+        return ""
+    engine = _ensure_ocr_engine()
+    if engine is None:
         return ""
     try:
         import numpy as np
         import fitz
-        from rapidocr_onnxruntime import RapidOCR
     except ImportError:
         return ""
-    if _OCR_ENGINE is None:
-        _OCR_ENGINE = RapidOCR()
     page = doc.load_page(index_zero)
     pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
     image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-    result, _elapse = _OCR_ENGINE(image)
-    if not result:
+    try:
+        result = engine(image)
+    except Exception:
         return ""
-    lines: list[str] = []
-    for item in result:
-        if isinstance(item, (list, tuple)) and len(item) >= 2 and item[1]:
-            lines.append(str(item[1]))
-    return "\n".join(lines)
+    return _ocr_result_to_text(result)
 
 
 def extract_page_text(plumber_page, fitz_doc, index_zero: int) -> tuple[str, str]:
@@ -364,6 +424,11 @@ def extract_voter_data(
             fitz_doc.close()
 
     if searchable_pages == 0:
+        if not ocr_packages_installed():
+            raise NonSearchablePdfError(
+                "This roll is an image scan and local OCR is not installed. "
+                "In the converter folder run:  .venv\\Scripts\\python.exe -m pip install rapidocr onnxruntime"
+            )
         raise NonSearchablePdfError(
             "No extractable text was found, including after local OCR. "
             "The file may be empty, damaged, or too low-quality to read."
