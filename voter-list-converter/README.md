@@ -1,97 +1,46 @@
 # Secure Local Voter Roll Converter
 
-Offline PDF → Excel tool for Indian electoral-roll PDFs (searchable text, or image scans via local OCR). It is a separate local utility from WIN WIN. Files never leave your computer.
+Offline PDF → Excel tool for Indian electoral-roll PDFs. Searchable PDFs work with the core PDF/Excel packages; image scans use local OCR. Files never leave your computer.
 
-Python **3.13** needs package `rapidocr` (not `rapidocr-onnxruntime`, which stops at Python 3.12).
+## Windows install
 
-## Install on your computer
+Use 64-bit Python 3.12 for the full feature set. Python 3.14/3.15 cannot currently install the Windows onnxruntime wheel required by OCR, but they can still convert searchable PDFs.
 
-You need **64-bit Python 3.12** (3.10–3.13 also work). Python **3.14 and 3.15 cannot** install `onnxruntime`, so image-roll OCR will fail. Windows installer: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
+1. Install Python from https://www.python.org/downloads/ (Python 3.12 is recommended; keep 3.15 if already installed).
+2. Leave **tcl/tk and IDLE** checked.
+3. Double-click `run.bat`.
 
-### 1. Get the folder
+The launcher selects an installed Python, creates/reuses `.venv`, installs core PDF/Excel dependencies, and installs OCR only when supported. On Python 3.15 it continues in searchable-PDF mode and tells you how to add Python 3.12 later for scanned rolls.
 
-Clone the repository (or download the ZIP) and open `voter-list-converter`:
+The window title is **Secure Local Voter Roll Converter**. Choose a PDF, set the Excel name, then click **Start Secure Conversion**.
 
-```bash
-git clone https://github.com/tbalarama-lgtm/dandakaranya-foods-erp.git
-cd dandakaranya-foods-erp
-git checkout cursor/voter-roll-converter-c283
-cd voter-list-converter
-```
-
-### 2. Windows
-
-1. Install Python from https://www.python.org/downloads/
-2. On the installer, enable **Add python.exe to PATH** and leave **tcl/tk and IDLE** checked.
-3. Double-click `run.bat`
-
-Or in Command Prompt:
-
-```bat
-cd voter-list-converter
-run.bat
-```
-
-The window title is **Secure Local Voter Roll Converter**. Choose a searchable `.pdf` roll, set the Excel name, then **Start Secure Conversion**.
-
-### 3. macOS
+## macOS and Linux
 
 ```bash
-# if python3 -c "import tkinter" fails:
+# macOS, if tkinter is unavailable:
 brew install python-tk
 
-cd voter-list-converter
-chmod +x run.sh
-./run.sh
-```
-
-### 4. Linux
-
-```bash
+# Linux:
 sudo apt install python3 python3-venv python3-tk
-cd voter-list-converter
-chmod +x run.sh
+
 ./run.sh
 ```
 
-### Try it with the sample roll
+## Try the sample
 
-After the window opens:
+Choose `tests/fixtures/sample-electoral-roll.pdf`; the converter should produce two rows (`RAMA RAO`, `LAKSHMI`) in an `.xlsx` file.
 
-1. Browse File → `tests/fixtures/sample-electoral-roll.pdf`
-2. Leave the export folder as this directory (or pick Desktop)
-3. Start Secure Conversion
+## OCR tradeoff
 
-You should get two rows (`RAMA RAO`, `LAKSHMI`) in an `.xlsx` file.
-
-## What it extracts
-
-From each voter block marked by `Age :` and `Gender:`:
-
-- Serial No.
-- EPIC ID (for example `ZOW0935116`)
-- Voter Name
-- Relation type and name (Father / Husband / Mother / Other)
-- House Number
-- Age (integer)
-- Gender
-- Active **Section No and Name** or **Street Name** from the page header
-- Source page
+Python 3.15 mode is immediately usable for text PDFs and avoids a failed setup. It cannot process image-only rolls until a compatible Python (recommended: 3.12 64-bit) is installed and `run.bat` is rerun. Keeping the fallback is preferable to forcing users to uninstall or replace their newer Python, while accepting that scanned-PDF support remains an optional environment upgrade.
 
 ## Limits
 
-- Text PDFs are parsed first. Image-scanned ECI rolls are OCR’d locally (slower, first run downloads an OCR model into the venv).
-- Password-protected PDFs are rejected until you unlock a local copy.
-- Processing is local only. There is no cloud upload.
+- OCR runs locally and downloads its model into the virtual environment on first setup.
+- Password-protected PDFs must be unlocked locally first.
+- Processing is local only; there is no cloud upload.
 
-## Command line (optional)
-
-```bash
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-python -c "from voter_parser import extract_voter_data; extract_voter_data('roll.pdf', output_path='roll.xlsx')"
-```
-
-## Tests (developers)
+## Tests
 
 ```bash
 pip install -r requirements-dev.txt
