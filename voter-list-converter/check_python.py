@@ -1,33 +1,32 @@
-"""Exit 0 only if this interpreter can install RapidOCR / onnxruntime wheels."""
+"""Check whether the selected interpreter can run core conversion or local OCR."""
 
 from __future__ import annotations
 
 import sys
 
 MIN = (3, 10)
-MAX_INCLUSIVE = (3, 13)
+MAX_OCR = (3, 13)
 PYTHON312_INSTALLER = "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
 
 
 def main() -> int:
     version = sys.version_info[:2]
+    wants_ocr = "--ocr" in sys.argv[1:]
     print(f"Python {sys.version.split()[0]}")
     print(sys.executable)
     if version < MIN:
         print("Need Python 3.10 or newer.")
         return 2
-    if version > MAX_INCLUSIVE:
+    if wants_ocr and version > MAX_OCR:
         print()
-        print("This Python is too new for local OCR.")
-        print("onnxruntime has no Windows wheel for Python 3.14/3.15.")
-        print("Install 64-bit Python 3.12 (keep 3.15 if you want):")
+        print("Local OCR is unavailable for this Python version because onnxruntime has no Windows wheel.")
+        print("Core conversion for searchable PDFs can still run without OCR.")
+        print("For scanned PDFs, install 64-bit Python 3.12 (you can keep this Python):")
         print(PYTHON312_INSTALLER)
-        print()
-        print("On the installer tick:")
-        print('  - Add python.exe to PATH')
-        print('  - tcl/tk and IDLE')
-        print("Then double-click run.bat again.")
+        print("Then run run.bat again.")
         return 1
+    if version > MAX_OCR:
+        print("Note: OCR is disabled for this Python version; searchable PDFs still work.")
     return 0
 
 
