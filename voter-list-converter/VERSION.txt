@@ -1,0 +1,2 @@
+BUILD 6 - REQUIRES PYTHON 3.12
+Python 3.15 has no onnxruntime wheel. run.bat selects 3.12/3.11/3.13 and refuses 3.14+.

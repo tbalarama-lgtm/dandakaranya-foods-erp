@@ -1,0 +1,20 @@
+BUILD 6 - INSTALL PYTHON 3.12 FIRST
+===================================
+
+The last error:
+  No matching distribution found for onnxruntime>=1.17.0 (from versions: none)
+  wheels named cp315
+
+means Windows Python 3.15 is installed. OCR cannot run on 3.15.
+
+1. Download Python 3.12 (64-bit) and install it. You can keep 3.15.
+   https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
+
+2. On the installer tick:
+   - Add python.exe to PATH
+   - tcl/tk and IDLE
+
+3. Extract this converter folder. Double-click run.bat.
+   run.bat now chooses py -3.12 automatically.
+
+4. When the dark window opens, pick the ECI PDF and Start Secure Conversion.
