@@ -4,7 +4,6 @@ cd /d "%~dp0"
 chcp 65001 >nul
 
 echo BUILD 7 - SEARCHABLE PDF MODE WORKS ON PYTHON 3.15
-
 echo.
 
 if not exist "gui_app.py" (
@@ -35,6 +34,15 @@ if not defined PY_LAUNCHER (
 echo Using: %PY_LAUNCHER% %PY_ARG%
 %PY_LAUNCHER% %PY_ARG% check_python.py
 if errorlevel 1 exit /b 1
+
+if exist ".venv\\Scripts\\python.exe" (
+  %PY_LAUNCHER% %PY_ARG% check_python.py --ocr >nul 2>nul
+  if not errorlevel 1 .venv\\Scripts\\python.exe check_python.py --ocr >nul 2>nul
+  if errorlevel 1 (
+    echo Recreating .venv with the selected compatible Python...
+    rmdir /s /q ".venv"
+  )
+)
 
 if not exist ".venv\\Scripts\\python.exe" (
   echo Creating virtual environment...
